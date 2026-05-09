@@ -163,7 +163,8 @@ async def generate(request: Request, payload: GenerateRequest):
     logger.warning(f"Запрос генерации: модель={payload.model}, длина_промпта={len(payload.prompt)}")
 
     # Шаг 1: Валидация промпта (проверка на injection и off-topic)
-    validator.validate(payload.prompt)
+    validation_result = validator.validate(payload.prompt)
+    logger.info(f"Validation passed: reason={validation_result['reason']}, validator_response={validation_result['validator_response']}")
 
     # Шаг 2: Вызов основного LLM для генерации
     result = llm_service.generate(
@@ -175,13 +176,15 @@ async def generate(request: Request, payload: GenerateRequest):
     # Шаг 3: Извлекаем usage данные из результата
     usage_data = result.pop("_usage", None)
 
-    # Шаг 4: Записываем статистику использования
+    # Шаг 4: Записываем статистику использования (включая результат валидации)
     if usage_data:
         usage_tracker.track(
             model=payload.model,
             prompt_tokens=usage_data["prompt_tokens"],
             completion_tokens=usage_data["completion_tokens"],
-            temperature=payload.temperature
+            temperature=payload.temperature,
+            validation_reason=validation_result["reason"],
+            validator_response=validation_result["validator_response"]
         )
 
     # Возвращаем результат

@@ -41,8 +41,9 @@ print()
 # Step 1: Validation
 print("Step 1: Validating prompt...")
 try:
-    validator.validate(test_prompt)
+    validation_result = validator.validate(test_prompt)
     print("✓ Prompt validation passed")
+    print(f"  Validation reason: {validation_result['reason']}")
 except Exception as e:
     print(f"✗ Validation failed: {e}")
     exit(1)
@@ -85,7 +86,9 @@ try:
             model=usage_data["model"],
             prompt_tokens=usage_data["prompt_tokens"],
             completion_tokens=usage_data["completion_tokens"],
-            temperature=0.7
+            temperature=0.7,
+            validation_reason=validation_result["reason"],
+            validator_response=validation_result["validator_response"]
         )
         print("✓ Usage tracked")
         print(f"  Tokens: {usage_data['total_tokens']} (prompt={usage_data['prompt_tokens']}, completion={usage_data['completion_tokens']})")

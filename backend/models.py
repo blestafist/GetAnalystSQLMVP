@@ -12,7 +12,7 @@ class GenerateRequest(BaseModel):
     """Запрос на генерацию SQL и диаграммы."""
     prompt: str = Field(..., min_length=1, max_length=2000, description="Текстовое описание запроса")
     model: str = Field(..., description="ID модели (напр. 'gpt-5.4')")
-    temperature: float | None = Field(0.7, ge=0.0, le=2.0, description="Temperature для LLM")
+    temperature: float | None = Field(None, ge=0.0, le=2.0, description="Temperature для LLM")
 
 
 class GenerateResponse(BaseModel):

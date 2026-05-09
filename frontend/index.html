@@ -6,6 +6,11 @@
     <title>SQL Assistant</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Mermaid.js for ER diagram rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <!-- Highlight.js for SQL syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <style>
         :root {
             --accent-color: #6750A4;
@@ -108,6 +113,9 @@
 
         <!-- Main App (hidden until auth) -->
         <div id="mainApp" class="hidden flex h-screen">
+            <!-- Progress Bar -->
+            <div id="progressBar" class="fixed top-0 left-0 h-1 bg-gradient-to-r from-transparent via-accent-text to-transparent z-50 transition-all" style="width: 0%; background-image: linear-gradient(90deg, transparent, var(--accent-color), transparent);"></div>
+            
             <!-- Sidebar -->
             <div class="w-80 bg-gray-800 border-r border-gray-700 p-6 overflow-y-auto flex flex-col">
                 <h1 class="text-2xl font-bold mb-6 accent-text">SQL Assistant</h1>
@@ -178,8 +186,9 @@
                 <!-- ER Diagram -->
                 <div id="mermaidContainer" class="hidden bg-gray-800 rounded-2xl p-6 elevation-2">
                     <h3 class="text-xl font-bold mb-4 accent-text">ER-диаграмма</h3>
-                    <div class="bg-gray-900 rounded-xl p-4">
-                        <pre id="mermaidPreview" class="text-sm overflow-x-auto text-gray-300"></pre>
+                    <div class="bg-gray-900 rounded-xl p-4 overflow-x-auto">
+                        <div id="mermaidPreview" class="mermaid"></div>
+                        <pre id="mermaidRawCode" class="text-sm text-gray-300 hidden"></pre>
                     </div>
                     <button id="viewRawMermaidBtn" class="mt-4 text-sm accent-text hover:underline">
                         Посмотреть сырой код диаграммы
@@ -194,8 +203,8 @@
                             Скопировать SQL
                         </button>
                     </div>
-                    <div class="bg-gray-900 rounded-xl p-4">
-                        <pre id="sqlPreview" class="text-sm overflow-x-auto text-green-400"></pre>
+                    <div class="bg-gray-900 rounded-xl p-4 overflow-x-auto">
+                        <pre><code id="sqlPreview" class="language-sql hljs"></code></pre>
                     </div>
                 </div>
 
@@ -242,6 +251,24 @@
                 // Обработчик смены модели
                 modelSelect.addEventListener('change', updateTemperatureSlider);
                 updateTemperatureSlider();
+
+                // Инициализируем Mermaid после установления цвета
+                if (typeof mermaid !== 'undefined') {
+                    mermaid.initialize({
+                        startOnLoad: false,
+                        theme: 'dark',
+                        logLevel: 'debug',
+                        themeVariables: {
+                            'primaryColor': '#2d3748',
+                            'primaryTextColor': '#fff',
+                            'primaryBorderColor': config.accent_color,
+                            'lineColor': '#6b7280',
+                            'secondBkgColor': '#1f2937',
+                            'tertiaryTextColor': '#d1d5db'
+                        }
+                    });
+                    console.log('[SQL Assistant] Mermaid initialized with config');
+                }
             } catch (error) {
                 showToast('Ошибка при загрузке конфигурации: ' + error.message, 'error');
             }
@@ -261,7 +288,8 @@
                 document.getElementById('tempValue').textContent = slider.value;
             } else {
                 slider.disabled = true;
-                document.getElementById('tempValue').textContent = 'N/A';
+                slider.value = 1.0;
+                document.getElementById('tempValue').textContent = '1.0 (fixed)';
             }
         }
 
@@ -338,11 +366,22 @@
             // Скрываем empty state
             document.getElementById('emptyState').classList.add('hidden');
 
+            // Логирование в консоль
+            console.log('[SQL Assistant] Запрос отправлен:', { prompt: prompt.substring(0, 50), model, temperature });
+
+            // Запускаем progress bar
+            updateProgressBar(10);
+
             try {
                 const payload = { prompt, model };
                 if (temperature !== null) {
                     payload.temperature = temperature;
+                } else {
+                    // Модель не поддерживает температуру - отправляем дефолтное значение 1.0
+                    payload.temperature = 1.0;
                 }
+
+                updateProgressBar(30);
 
                 const response = await fetch('/generate', {
                     method: 'POST',
@@ -354,6 +393,7 @@
                 });
 
                 if (response.status === 401) {
+                    console.error('[SQL Assistant] Auth error: 401');
                     showToast('Неверный ключ доступа', 'error');
                     sessionStorage.removeItem('secret_key');
                     setTimeout(() => location.reload(), 2000);
@@ -361,26 +401,75 @@
                 }
 
                 if (response.status === 429) {
+                    console.error('[SQL Assistant] Rate limit: 429');
                     showToast('Превышен лимит запросов. Попробуйте позже.', 'error');
                     return;
                 }
 
                 if (!response.ok) {
+                    updateProgressBar(0);
                     const error = await response.json();
-                    showToast(error.message || 'Ошибка генерации', 'error');
+                    const errorMsg = error.message || error.detail || 'Ошибка генерации';
+                    console.error('[SQL Assistant] API error:', error);
+                    showToast(errorMsg, 'error');
                     return;
                 }
 
+                updateProgressBar(60);
+
                 const result = await response.json();
+                console.log('[SQL Assistant] Результат получен:', { 
+                    mermaidLength: result.mermaid_code?.length, 
+                    sqlLength: result.sql_query?.length 
+                });
 
                 // Показываем результаты с анимацией
                 const mermaidContainer = document.getElementById('mermaidContainer');
                 mermaidContainer.classList.remove('hidden');
-                document.getElementById('mermaidPreview').textContent = result.mermaid_code;
+                
+                // Store raw code
+                document.getElementById('mermaidRawCode').textContent = result.mermaid_code;
+                
+                // Clear and recreate Mermaid div
+                const mermaidDiv = document.getElementById('mermaidPreview');
+                mermaidDiv.innerHTML = ''; // Clear all previous content
+                mermaidDiv.classList.add('mermaid'); // Ensure class is set
+                mermaidDiv.textContent = result.mermaid_code; // Add new diagram code
+                
+                // Render Mermaid diagrams
+                try {
+                    updateProgressBar(70);
+                    console.log('[SQL Assistant] Starting Mermaid render with code:', result.mermaid_code.substring(0, 50) + '...');
+                    
+                    // Force Mermaid to process the new content
+                    if (typeof mermaid !== 'undefined' && mermaid.run) {
+                        await mermaid.run();
+                    } else if (typeof mermaid !== 'undefined' && mermaid.contentLoaded) {
+                        mermaid.contentLoaded();
+                    }
+                    
+                    // Show mermaid div, hide raw code
+                    mermaidDiv.classList.remove('hidden');
+                    document.getElementById('mermaidRawCode').classList.add('hidden');
+                    console.log('[SQL Assistant] Mermaid diagram rendered successfully');
+                } catch (e) {
+                    console.error('[SQL Assistant] Mermaid rendering failed:', e);
+                    console.error('[SQL Assistant] Mermaid code was:', result.mermaid_code);
+                    
+                    // Fallback to raw code view
+                    mermaidDiv.classList.add('hidden');
+                    const rawDiv = document.getElementById('mermaidRawCode');
+                    rawDiv.classList.remove('hidden');
+                    showToast('Диаграмма не отобразилась, показываю код', 'info');
+                }
+
+                updateProgressBar(80);
 
                 const sqlContainer = document.getElementById('sqlContainer');
                 sqlContainer.classList.remove('hidden');
-                document.getElementById('sqlPreview').textContent = result.sql_query;
+                const sqlElement = document.getElementById('sqlPreview');
+                sqlElement.textContent = result.sql_query;
+                hljs.highlightElement(sqlElement);
 
                 const explanationContainer = document.getElementById('explanationContainer');
                 explanationContainer.classList.remove('hidden');
@@ -388,8 +477,12 @@
                 // Typewriter эффект для объяснения
                 typewriterEffect(document.getElementById('explanationText'), result.explanation);
 
+                updateProgressBar(100);
+                setTimeout(() => updateProgressBar(0), 500);
                 showToast('Успешно сгенерировано!', 'success');
             } catch (error) {
+                updateProgressBar(0);
+                console.error('[SQL Assistant] Unexpected error:', error);
                 showToast('Ошибка: ' + error.message, 'error');
             } finally {
                 generateBtn.disabled = false;
@@ -407,26 +500,37 @@
             });
         });
 
-        // View raw Mermaid code
+        // View raw Mermaid code (toggle between rendered and raw)
         document.getElementById('viewRawMermaidBtn').addEventListener('click', () => {
-            const mermaidCode = document.getElementById('mermaidPreview').textContent;
-            const modal = document.createElement('div');
-            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-            modal.innerHTML = `
-                <div class="bg-gray-800 rounded-2xl p-6 w-3/4 max-w-4xl elevation-3">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-xl font-bold accent-text">Сырой код Mermaid</h3>
-                        <button onclick="this.closest('.fixed').remove()" class="text-gray-400 hover:text-white text-2xl">&times;</button>
-                    </div>
-                    <textarea readonly class="w-full h-96 bg-gray-900 text-gray-300 p-4 rounded-xl font-mono text-sm">${mermaidCode}</textarea>
-                    <button onclick="navigator.clipboard.writeText(\`${mermaidCode.replace(/`/g, '\\`')}\`).then(() => showToast('Код скопирован!', 'success'))"
-                            class="mt-4 accent-bg hover:opacity-90 px-4 py-2 rounded-lg elevation-1 font-medium">
-                        Скопировать код
-                    </button>
-                </div>
-            `;
-            document.body.appendChild(modal);
+            const mermaidPreview = document.getElementById('mermaidPreview');
+            const mermaidRawCode = document.getElementById('mermaidRawCode');
+            const btn = document.getElementById('viewRawMermaidBtn');
+            
+            const isShowingRaw = mermaidRawCode.classList.contains('hidden');
+            
+            if (isShowingRaw) {
+                // Show raw code
+                mermaidPreview.classList.add('hidden');
+                mermaidRawCode.classList.remove('hidden');
+                btn.textContent = 'Вернуться к диаграмме';
+            } else {
+                // Show rendered diagram
+                mermaidPreview.classList.remove('hidden');
+                mermaidRawCode.classList.add('hidden');
+                btn.textContent = 'Посмотреть сырой код диаграммы';
+            }
         });
+
+        // Progress bar update
+        function updateProgressBar(percent) {
+            const bar = document.getElementById('progressBar');
+            bar.style.width = percent + '%';
+            if (percent === 0) {
+                setTimeout(() => {
+                    bar.style.width = '0%';
+                }, 300);
+            }
+        }
 
         // Toast notifications
         function showToast(message, type = 'info') {

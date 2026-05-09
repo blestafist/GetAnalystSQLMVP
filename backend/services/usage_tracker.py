@@ -78,7 +78,9 @@ class UsageTracker:
         model: str,
         prompt_tokens: int,
         completion_tokens: int,
-        temperature: Optional[float] = None
+        temperature: Optional[float] = None,
+        validation_reason: Optional[str] = None,
+        validator_response: Optional[str] = None
     ) -> None:
         """
         Record a new API call in usage.json.
@@ -88,6 +90,8 @@ class UsageTracker:
             prompt_tokens: Number of tokens in prompt
             completion_tokens: Number of tokens in completion
             temperature: Temperature parameter (if used)
+            validation_reason: Validation result reason (ok, injection, off_topic)
+            validator_response: Raw response from validator model
         """
         try:
             # Read current data
@@ -113,6 +117,12 @@ class UsageTracker:
             if temperature is not None:
                 log_entry["temperature"] = temperature
 
+            # Add validation info if provided
+            if validation_reason is not None:
+                log_entry["validation_reason"] = validation_reason
+            if validator_response is not None:
+                log_entry["validator_response"] = validator_response
+
             # Append to log
             data["log"].append(log_entry)
 
@@ -121,7 +131,8 @@ class UsageTracker:
 
             logger.info(
                 f"Usage tracked: model={model}, "
-                f"tokens={total_tokens} (prompt={prompt_tokens}, completion={completion_tokens})"
+                f"tokens={total_tokens} (prompt={prompt_tokens}, completion={completion_tokens}), "
+                f"validation={validation_reason}"
             )
 
         except Exception as e:
