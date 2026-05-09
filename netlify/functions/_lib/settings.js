@@ -9,7 +9,16 @@ dotenv.config({ path: path.resolve(process.cwd(), ".env") });
  * В отличие от .env, это не секретные данные и они отдаются фронтенду.
  */
 function loadConfig() {
-  const configPath = path.resolve(process.cwd(), "config.json");
+  const candidatePaths = [
+    path.resolve(process.cwd(), "config.json"),
+    path.resolve(__dirname, "../../../config.json")
+  ];
+
+  const configPath = candidatePaths.find((candidatePath) => fs.existsSync(candidatePath));
+  if (!configPath) {
+    throw new Error(`config.json не найден. Проверены пути: ${candidatePaths.join(", ")}`);
+  }
+
   const raw = fs.readFileSync(configPath, "utf-8");
   return JSON.parse(raw);
 }
@@ -29,4 +38,3 @@ function getSettings() {
 }
 
 module.exports = { getSettings };
-

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "netlify dev",
     "start": "netlify dev",
-    "check": "node -e \"require('./netlify/functions/config'); require('./netlify/functions/generate'); console.log('ok')\"",
+    "check": "node -e \"require('./netlify/functions/auth'); require('./netlify/functions/config'); require('./netlify/functions/generate'); console.log('ok')\"",
     "generate:key": "node scripts/generate-key.js"
   },
   "dependencies": {
@@ -18,4 +18,3 @@
     "netlify-cli": "^20.1.0"
   }
 }
-

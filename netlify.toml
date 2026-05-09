@@ -6,6 +6,11 @@
   node_bundler = "esbuild"
 
 [[redirects]]
+  from = "/auth"
+  to = "/.netlify/functions/auth"
+  status = 200
+
+[[redirects]]
   from = "/config"
   to = "/.netlify/functions/config"
   status = 200
@@ -14,4 +19,3 @@
   from = "/generate"
   to = "/.netlify/functions/generate"
   status = 200
-

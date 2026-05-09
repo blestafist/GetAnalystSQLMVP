@@ -343,6 +343,36 @@
         let config = null;
         let secretKey = null;
 
+        function setAuthenticatedUi(isAuthenticated) {
+            document.getElementById('authModal').style.display = isAuthenticated ? 'none' : '';
+            document.getElementById('mainApp').classList.toggle('hidden', !isAuthenticated);
+        }
+
+        async function fetchJsonWithFallback(paths, options) {
+            let lastError = null;
+
+            for (const requestPath of paths) {
+                try {
+                    const response = await fetch(requestPath, options);
+                    if (!response.ok) {
+                        let serverMessage = '';
+                        try {
+                            const payload = await response.json();
+                            serverMessage = payload?.message || '';
+                        } catch (_) {}
+
+                        throw new Error(serverMessage || `HTTP ${response.status} ${response.statusText}`);
+                    }
+
+                    return await response.json();
+                } catch (error) {
+                    lastError = error;
+                }
+            }
+
+            throw lastError || new Error('Request failed');
+        }
+
         // Функция для применения акцентного цвета
         function applyAccentColor(color) {
             document.documentElement.style.setProperty('--accent-color', color);
@@ -389,9 +419,7 @@
         // Загружаем конфиг с сервера
         async function loadConfig() {
             try {
-                const response = await fetch('/config');
-                if (!response.ok) throw new Error('Failed to load config');
-                config = await response.json();
+                config = await fetchJsonWithFallback(['/config', '/.netlify/functions/config']);
 
                 // Проверяем сохраненный цвет в localStorage
                 const savedColor = localStorage.getItem('accent_color');
@@ -423,6 +451,28 @@
             }
         }
 
+        async function authenticateSecretKey(key, { persist = false } = {}) {
+            await fetchJsonWithFallback(
+                ['/auth', '/.netlify/functions/auth'],
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Secret-Key': key
+                    },
+                    body: '{}'
+                }
+            );
+
+            secretKey = key;
+            if (persist) {
+                sessionStorage.setItem('secret_key', key);
+            }
+
+            setAuthenticatedUi(true);
+            await loadConfig();
+        }
+
         // Обновление слайдера температуры в зависимости от модели
         function updateTemperatureSlider() {
             const modelSelect = document.getElementById('modelSelect');
@@ -443,27 +493,38 @@
         }
 
         // Auth modal
-        document.getElementById('submitKeyBtn').addEventListener('click', () => {
+        document.getElementById('submitKeyBtn').addEventListener('click', async () => {
             const key = document.getElementById('secretKeyInput').value.trim();
             if (!key) {
                 showToast('Введите SecretKey', 'error');
                 return;
             }
-            secretKey = key;
-            sessionStorage.setItem('secret_key', key);
-            document.getElementById('authModal').style.display = 'none';
-            document.getElementById('mainApp').classList.remove('hidden');
-            loadConfig();
+
+            const submitBtn = document.getElementById('submitKeyBtn');
+            submitBtn.disabled = true;
+
+            try {
+                await authenticateSecretKey(key, { persist: true });
+            } catch (error) {
+                showToast(error.message || 'Неверный ключ доступа', 'error');
+                setAuthenticatedUi(false);
+            } finally {
+                submitBtn.disabled = false;
+            }
         });
 
         // Проверяем, есть ли ключ в sessionStorage при загрузке
-        window.addEventListener('load', () => {
+        window.addEventListener('load', async () => {
             const savedKey = sessionStorage.getItem('secret_key');
             if (savedKey) {
-                secretKey = savedKey;
-                document.getElementById('authModal').style.display = 'none';
-                document.getElementById('mainApp').classList.remove('hidden');
-                loadConfig();
+                try {
+                    await authenticateSecretKey(savedKey);
+                } catch (error) {
+                    secretKey = null;
+                    sessionStorage.removeItem('secret_key');
+                    setAuthenticatedUi(false);
+                    showToast('Сессия истекла. Введите ключ заново.', 'error');
+                }
             }
         });
 
@@ -522,9 +583,7 @@
 
         document.getElementById('reloadConfigBtn').addEventListener('click', async () => {
             try {
-                const response = await fetch('/config');
-                if (!response.ok) throw new Error('Failed to reload config');
-                config = await response.json();
+                config = await fetchJsonWithFallback(['/config', '/.netlify/functions/config']);
 
                 document.getElementById('configEditor').value = JSON.stringify(config, null, 2);
                 showToast('Конфигурация перезагружена с сервера', 'success');

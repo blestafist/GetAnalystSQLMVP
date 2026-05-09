@@ -13,6 +13,7 @@ GetAnalystMVP/
 ├── netlify.toml                # Настройки билда и редиректов Netlify
 ├── netlify/functions/
 │   ├── config.js               # GET /config
+│   ├── auth.js                 # POST /auth
 │   ├── generate.js             # POST /generate
 │   └── _lib/                   # Общие модули (auth, llm, validator, errors...)
 ├── scripts/
@@ -58,6 +59,7 @@ SECRET_KEY_HASH=$2b$12$...
 ## API
 
 - `GET /config` — публичный конфиг (модели, лимиты, accent color)
+- `POST /auth` — проверка заголовка `X-Secret-Key` для входа в UI
 - `POST /generate` — генерация SQL/ER-диаграммы (требует заголовок `X-Secret-Key`)
 
 ## Деплой на Netlify
@@ -67,4 +69,3 @@ SECRET_KEY_HASH=$2b$12$...
 3. Publish directory: `.`
 4. Functions directory: `netlify/functions`
 5. Добавить env vars `OPENAI_API_KEY` и `SECRET_KEY_HASH` в Site settings → Environment variables.
-
