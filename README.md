@@ -33,11 +33,13 @@ a3407c6794e254f86d9aa6513cde9ded2496438abb3daf2ca7360c02728d7feb
 **Что нужно сделать:**
 
 1. Получить новый API ключ на https://platform.openai.com/account/api-keys
+
 2. Обновить `.env`:
    
    ```bash
    OPENAI_API_KEY=sk-proj-ваш-новый-ключ
    ```
+
 3. Перезапустить сервер
 
 **Что работает без API ключа:**
