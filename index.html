@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Mermaid.js for ER diagram rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <!-- Highlight.js for SQL syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <style>
+        :root {
+            --accent-color: #6750A4;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+        }
+
+        code, pre {
+            font-family: 'Roboto Mono', monospace;
+        }
+
+        /* Material You transitions - Hyprland style */
+        * {
+            transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1f2937;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #4b5563;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6b7280;
+        }
+
+        /* Material elevation shadows */
+        .elevation-1 {
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+        }
+
+        .elevation-2 {
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
+        }
+
+        .elevation-3 {
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.19), 0 6px 6px rgba(0, 0, 0, 0.23);
+        }
+
+        /* Accent color from config */
+        .accent-bg {
+            background-color: var(--accent-color);
+        }
+
+        .accent-border {
+            border-color: var(--accent-color);
+        }
+
+        .accent-text {
+            color: var(--accent-color);
+        }
+
+        /* Disabled state */
+        input:disabled, select:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Focus states */
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            ring: 2px;
+            ring-color: var(--accent-color);
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100">
+    <div id="app">
+        <!-- Auth Modal -->
+        <div id="authModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-gray-800 rounded-2xl p-8 w-96 elevation-3">
+                <h2 class="text-2xl font-bold mb-2">SQL Assistant</h2>
+                <p class="text-gray-400 mb-6">Введите ваш SecretKey для доступа</p>
+                <input
+                    id="secretKeyInput"
+                    type="password"
+                    placeholder="Введите SecretKey..."
+                    class="w-full bg-gray-700 text-white px-4 py-3 rounded-xl mb-4 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800"
+                    style="focus:ring-color: var(--accent-color);"
+                />
+                <button
+                    id="submitKeyBtn"
+                    class="w-full accent-bg hover:opacity-90 text-white font-medium py-3 rounded-xl elevation-1"
+                >
+                    Войти
+                </button>
+            </div>
+        </div>
+
+        <!-- Settings Modal -->
+        <div id="settingsModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+            <div class="bg-gray-800 rounded-2xl p-8 w-[500px] elevation-3 max-h-[80vh] overflow-y-auto">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold">Настройки</h2>
+                    <button id="closeSettingsBtn" class="text-gray-400 hover:text-white">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Accent Color Picker -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium mb-3 text-gray-300">Акцентный цвет</label>
+                    <div class="grid grid-cols-5 gap-3">
+                        <button class="color-option w-12 h-12 rounded-lg elevation-1 transition-transform hover:scale-110" data-color="#6750A4" style="background-color: #6750A4;" title="Фиолетовый"></button>
+                        <button class="color-option w-12 h-12 rounded-lg elevation-1 transition-transform hover:scale-110" data-color="#27F565" style="background-color: #27F565;" title="Зеленый"></button>
+                        <button class="color-option w-12 h-12 rounded-lg elevation-1 transition-transform hover:scale-110" data-color="#FF6B6B" style="background-color: #FF6B6B;" title="Красный"></button>
+                        <button class="color-option w-12 h-12 rounded-lg elevation-1 transition-transform hover:scale-110" data-color="#4ECDC4" style="background-color: #4ECDC4;" title="Бирюзовый"></button>
+                        <button class="color-option w-12 h-12 rounded-lg elevation-1 transition-transform hover:scale-110" data-color="#FFD93D" style="background-color: #FFD93D;" title="Желтый"></button>
+                        <button class="color-option w-12 h-12 rounded-lg elevation-1 transition-transform hover:scale-110" data-color="#FF8C42" style="background-color: #FF8C42;" title="Оранжевый"></button>
+                        <button class="color-option w-12 h-12 rounded-lg elevation-1 transition-transform hover:scale-110" data-color="#A8E6CF" style="background-color: #A8E6CF;" title="Мятный"></button>
+                        <button class="color-option w-12 h-12 rounded-lg elevation-1 transition-transform hover:scale-110" data-color="#FF6F91" style="background-color: #FF6F91;" title="Розовый"></button>
+                        <button class="color-option w-12 h-12 rounded-lg elevation-1 transition-transform hover:scale-110" data-color="#845EC2" style="background-color: #845EC2;" title="Пурпурный"></button>
+                        <button class="color-option w-12 h-12 rounded-lg elevation-1 transition-transform hover:scale-110" data-color="#00C9A7" style="background-color: #00C9A7;" title="Изумрудный"></button>
+                    </div>
+                    <div class="mt-4">
+                        <label class="block text-xs text-gray-500 mb-2">Или введите свой цвет (HEX):</label>
+                        <div class="flex gap-2">
+                            <input
+                                id="customColorInput"
+                                type="text"
+                                placeholder="#6750A4"
+                                class="flex-1 bg-gray-700 text-white px-4 py-2 rounded-lg text-sm focus:outline-none focus:ring-2"
+                                style="focus:ring-color: var(--accent-color);"
+                            />
+                            <button id="applyCustomColorBtn" class="accent-bg hover:opacity-90 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                                Применить
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Config Editor -->
+                <div class="mb-6 border-t border-gray-700 pt-6">
+                    <label class="block text-sm font-medium mb-3 text-gray-300">Редактор конфигурации</label>
+                    <p class="text-xs text-gray-500 mb-3">Изменения сохраняются только в текущей сессии</p>
+                    <textarea
+                        id="configEditor"
+                        class="w-full h-64 bg-gray-900 text-gray-100 font-mono text-xs px-4 py-3 rounded-lg resize-none focus:outline-none focus:ring-2"
+                        style="focus:ring-color: var(--accent-color);"
+                        placeholder="Загрузка конфигурации..."
+                    ></textarea>
+                    <div class="flex gap-2 mt-3">
+                        <button id="applyConfigBtn" class="accent-bg hover:opacity-90 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                            Применить изменения
+                        </button>
+                        <button id="reloadConfigBtn" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                            Сбросить
+                        </button>
+                    </div>
+                </div>
+
+                <div class="border-t border-gray-700 pt-4">
+                    <button id="resetSettingsBtn" class="text-sm text-gray-400 hover:text-white">
+                        Сбросить настройки по умолчанию
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main App (hidden until auth) -->
+        <div id="mainApp" class="hidden flex h-screen">
+            <!-- Progress Bar -->
+            <div id="progressBar" class="fixed top-0 left-0 h-1 bg-gradient-to-r from-transparent via-accent-text to-transparent z-50 transition-all" style="width: 0%; background-image: linear-gradient(90deg, transparent, var(--accent-color), transparent);"></div>
+            
+            <!-- Sidebar -->
+            <div class="w-80 bg-gray-800 border-r border-gray-700 p-6 overflow-y-auto flex flex-col">
+                <div class="flex justify-between items-center mb-6">
+                    <h1 class="text-2xl font-bold accent-text">SQL Assistant</h1>
+                    <button id="settingsBtn" class="text-gray-400 hover:text-white transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="space-y-6 flex-1">
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-gray-300">Ваш запрос</label>
+                        <textarea
+                            id="promptInput"
+                            placeholder="Опишите что вам нужно..."
+                            class="w-full h-32 bg-gray-700 text-white px-4 py-3 rounded-xl resize-none focus:outline-none focus:ring-2"
+                            style="focus:ring-color: var(--accent-color);"
+                        ></textarea>
+                        <p class="text-xs text-gray-500 mt-2">💡 Нажмите <kbd class="px-2 py-1 bg-gray-700 rounded">Tab</kbd> для примера</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-gray-300">
+                            Температура: <span id="tempValue" class="accent-text font-bold">0.7</span>
+                        </label>
+                        <input
+                            id="temperatureSlider"
+                            type="range"
+                            min="0"
+                            max="2"
+                            step="0.1"
+                            value="0.7"
+                            class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-slider"
+                        />
+                        <div class="flex justify-between text-xs text-gray-500 mt-1">
+                            <span>0.0</span>
+                            <span>2.0</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-gray-300">Модель</label>
+                        <select
+                            id="modelSelect"
+                            class="w-full bg-gray-700 text-white px-4 py-3 rounded-xl focus:outline-none focus:ring-2 cursor-pointer"
+                            style="focus:ring-color: var(--accent-color);"
+                        >
+                            <option value="">Загрузка моделей...</option>
+                        </select>
+                    </div>
+
+                    <button
+                        id="generateBtn"
+                        class="w-full accent-bg hover:opacity-90 text-white font-medium py-3 rounded-xl elevation-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        Сгенерировать
+                    </button>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="flex-1 overflow-auto p-8 space-y-6 bg-gray-900">
+                <!-- Empty state -->
+                <div id="emptyState" class="flex items-center justify-center h-full">
+                    <div class="text-center text-gray-500">
+                        <svg class="w-24 h-24 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path>
+                        </svg>
+                        <p class="text-lg">Введите запрос и нажмите "Сгенерировать"</p>
+                    </div>
+                </div>
+
+                <!-- ER Diagram -->
+                <div id="mermaidContainer" class="hidden bg-gray-800 rounded-2xl p-6 elevation-2">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-bold accent-text">ER-диаграмма</h3>
+                        <div class="flex gap-2">
+                            <button id="downloadSvgBtn" class="text-sm bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg elevation-1 font-medium">
+                                Скачать SVG
+                            </button>
+                            <button id="toggleEditorBtn" class="text-sm accent-bg hover:opacity-90 px-4 py-2 rounded-lg elevation-1 font-medium">
+                                Редактировать код
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Preview mode -->
+                    <div id="mermaidPreviewContainer" class="bg-gray-900 rounded-xl p-4 overflow-x-auto">
+                        <div id="mermaidPreview"></div>
+                    </div>
+
+                    <!-- Editor mode (hidden by default) -->
+                    <div id="mermaidEditorContainer" class="hidden space-y-4">
+                        <div class="bg-gray-900 rounded-xl p-4">
+                            <textarea
+                                id="mermaidEditor"
+                                class="w-full h-64 bg-gray-800 text-gray-100 font-mono text-sm px-4 py-3 rounded-lg resize-none focus:outline-none focus:ring-2"
+                                style="focus:ring-color: var(--accent-color);"
+                                placeholder="erDiagram..."
+                            ></textarea>
+                        </div>
+                        <div class="flex gap-2">
+                            <button id="updateDiagramBtn" class="accent-bg hover:opacity-90 text-white font-medium px-6 py-2 rounded-lg elevation-1">
+                                Обновить диаграмму
+                            </button>
+                            <button id="cancelEditBtn" class="bg-gray-700 hover:bg-gray-600 text-white font-medium px-6 py-2 rounded-lg">
+                                Отмена
+                            </button>
+                        </div>
+                        <!-- Live preview in editor mode -->
+                        <div class="bg-gray-900 rounded-xl p-4 overflow-x-auto">
+                            <h4 class="text-sm font-medium text-gray-400 mb-2">Предварительный просмотр:</h4>
+                            <div id="mermaidLivePreview"></div>
+                        </div>
+                    </div>
+
+                    <button id="viewRawMermaidBtn" class="mt-4 text-sm accent-text hover:underline">
+                        Посмотреть сырой код
+                    </button>
+                    <pre id="mermaidRawCode" class="mt-2 text-sm text-gray-300 bg-gray-900 p-4 rounded-lg hidden overflow-x-auto"></pre>
+                </div>
+
+                <!-- SQL Query -->
+                <div id="sqlContainer" class="hidden bg-gray-800 rounded-2xl p-6 elevation-2">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-bold accent-text">SQL-запрос</h3>
+                        <button id="copySqlBtn" class="text-sm accent-bg hover:opacity-90 px-4 py-2 rounded-lg elevation-1 font-medium">
+                            Скопировать SQL
+                        </button>
+                    </div>
+                    <div class="bg-gray-900 rounded-xl p-4 overflow-x-auto">
+                        <pre><code id="sqlPreview" class="language-sql hljs"></code></pre>
+                    </div>
+                </div>
+
+                <!-- Explanation -->
+                <div id="explanationContainer" class="hidden bg-gray-800 rounded-2xl p-6 elevation-2">
+                    <h3 class="text-xl font-bold mb-4 accent-text">Объяснение</h3>
+                    <p id="explanationText" class="text-gray-300 leading-relaxed"></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast container -->
+        <div id="toastContainer" class="fixed top-4 right-4 space-y-2 z-40"></div>
+    </div>
+
+    <script>
+        // Инициализация
+        let config = null;
+        let secretKey = null;
+
+        // Функция для применения акцентного цвета
+        function applyAccentColor(color) {
+            document.documentElement.style.setProperty('--accent-color', color);
+
+            // Сохраняем в localStorage
+            localStorage.setItem('accent_color', color);
+
+            // Обновляем активную кнопку в настройках
+            document.querySelectorAll('.color-option').forEach(btn => {
+                if (btn.dataset.color === color) {
+                    btn.style.border = '3px solid white';
+                } else {
+                    btn.style.border = 'none';
+                }
+            });
+
+            // Переинициализируем Mermaid с новым цветом
+            if (typeof mermaid !== 'undefined') {
+                mermaid.initialize({
+                    startOnLoad: false,
+                    theme: 'dark',
+                    themeVariables: {
+                        'primaryColor': color,
+                        'primaryTextColor': '#ffffff',
+                        'primaryBorderColor': color,
+                        'lineColor': color,
+                        'secondaryColor': '#1f2937',
+                        'tertiaryColor': '#374151',
+                        'background': '#111827',
+                        'mainBkg': '#1f2937',
+                        'secondBkg': '#374151',
+                        'tertiaryBkg': '#4b5563',
+                        'primaryTextColor': '#f3f4f6',
+                        'secondaryTextColor': '#d1d5db',
+                        'tertiaryTextColor': '#9ca3af',
+                        'lineColor': color,
+                        'textColor': '#f3f4f6',
+                        'fontSize': '16px'
+                    }
+                });
+            }
+        }
+
+        // Загружаем конфиг с сервера
+        async function loadConfig() {
+            try {
+                const response = await fetch('/config');
+                if (!response.ok) throw new Error('Failed to load config');
+                config = await response.json();
+
+                // Проверяем сохраненный цвет в localStorage
+                const savedColor = localStorage.getItem('accent_color');
+                const accentColor = savedColor || config.accent_color;
+
+                // Устанавливаем accent color
+                applyAccentColor(accentColor);
+
+                // Заполняем дропдаун моделей
+                const modelSelect = document.getElementById('modelSelect');
+                modelSelect.innerHTML = '';
+                config.models.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model.id;
+                    option.textContent = model.display_name;
+                    option.dataset.supportsTemp = model.supports_temperature;
+                    option.dataset.tempMin = model.temperature_range ? model.temperature_range[0] : 0;
+                    option.dataset.tempMax = model.temperature_range ? model.temperature_range[1] : 2;
+                    modelSelect.appendChild(option);
+                });
+
+                // Обработчик смены модели
+                modelSelect.addEventListener('change', updateTemperatureSlider);
+                updateTemperatureSlider();
+
+                console.log('[SQL Assistant] Config loaded, accent color:', accentColor);
+            } catch (error) {
+                showToast('Ошибка при загрузке конфигурации: ' + error.message, 'error');
+            }
+        }
+
+        // Обновление слайдера температуры в зависимости от модели
+        function updateTemperatureSlider() {
+            const modelSelect = document.getElementById('modelSelect');
+            const selectedOption = modelSelect.options[modelSelect.selectedIndex];
+            const slider = document.getElementById('temperatureSlider');
+
+            if (selectedOption.dataset.supportsTemp === 'true') {
+                slider.disabled = false;
+                slider.min = selectedOption.dataset.tempMin;
+                slider.max = selectedOption.dataset.tempMax;
+                slider.value = (parseFloat(selectedOption.dataset.tempMin) + parseFloat(selectedOption.dataset.tempMax)) / 2;
+                document.getElementById('tempValue').textContent = slider.value;
+            } else {
+                slider.disabled = true;
+                slider.value = 1.0;
+                document.getElementById('tempValue').textContent = '1.0 (fixed)';
+            }
+        }
+
+        // Auth modal
+        document.getElementById('submitKeyBtn').addEventListener('click', () => {
+            const key = document.getElementById('secretKeyInput').value.trim();
+            if (!key) {
+                showToast('Введите SecretKey', 'error');
+                return;
+            }
+            secretKey = key;
+            sessionStorage.setItem('secret_key', key);
+            document.getElementById('authModal').style.display = 'none';
+            document.getElementById('mainApp').classList.remove('hidden');
+            loadConfig();
+        });
+
+        // Проверяем, есть ли ключ в sessionStorage при загрузке
+        window.addEventListener('load', () => {
+            const savedKey = sessionStorage.getItem('secret_key');
+            if (savedKey) {
+                secretKey = savedKey;
+                document.getElementById('authModal').style.display = 'none';
+                document.getElementById('mainApp').classList.remove('hidden');
+                loadConfig();
+            }
+        });
+
+        // Settings modal handlers
+        document.getElementById('settingsBtn').addEventListener('click', () => {
+            document.getElementById('settingsModal').classList.remove('hidden');
+
+            // Load current config into editor
+            if (config) {
+                document.getElementById('configEditor').value = JSON.stringify(config, null, 2);
+            }
+        });
+
+        document.getElementById('closeSettingsBtn').addEventListener('click', () => {
+            document.getElementById('settingsModal').classList.add('hidden');
+        });
+
+        // Config editor handlers
+        document.getElementById('applyConfigBtn').addEventListener('click', () => {
+            try {
+                const newConfig = JSON.parse(document.getElementById('configEditor').value);
+
+                // Validate config structure
+                if (!newConfig.models || !Array.isArray(newConfig.models)) {
+                    throw new Error('Конфигурация должна содержать массив models');
+                }
+
+                // Apply new config
+                config = newConfig;
+
+                // Update accent color
+                if (config.accent_color) {
+                    applyAccentColor(config.accent_color);
+                }
+
+                // Reload models dropdown
+                const modelSelect = document.getElementById('modelSelect');
+                modelSelect.innerHTML = '';
+                config.models.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model.id;
+                    option.textContent = model.display_name;
+                    option.dataset.supportsTemp = model.supports_temperature;
+                    option.dataset.tempMin = model.temperature_range ? model.temperature_range[0] : 0;
+                    option.dataset.tempMax = model.temperature_range ? model.temperature_range[1] : 2;
+                    modelSelect.appendChild(option);
+                });
+
+                updateTemperatureSlider();
+
+                showToast('Конфигурация применена! (только для текущей сессии)', 'success');
+            } catch (e) {
+                showToast('Ошибка в JSON: ' + e.message, 'error');
+            }
+        });
+
+        document.getElementById('reloadConfigBtn').addEventListener('click', async () => {
+            try {
+                const response = await fetch('/config');
+                if (!response.ok) throw new Error('Failed to reload config');
+                config = await response.json();
+
+                document.getElementById('configEditor').value = JSON.stringify(config, null, 2);
+                showToast('Конфигурация перезагружена с сервера', 'success');
+            } catch (e) {
+                showToast('Ошибка при загрузке конфигурации: ' + e.message, 'error');
+            }
+        });
+
+        // Color picker handlers
+        document.querySelectorAll('.color-option').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const color = btn.dataset.color;
+                applyAccentColor(color);
+                showToast('Цвет изменен!', 'success');
+            });
+        });
+
+        // Custom color input
+        document.getElementById('applyCustomColorBtn').addEventListener('click', () => {
+            const customColor = document.getElementById('customColorInput').value.trim();
+
+            // Validate hex color
+            const hexRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+            if (!hexRegex.test(customColor)) {
+                showToast('Неверный формат цвета. Используйте HEX (#RRGGBB)', 'error');
+                return;
+            }
+
+            applyAccentColor(customColor);
+            showToast('Цвет изменен!', 'success');
+        });
+
+        // Reset settings
+        document.getElementById('resetSettingsBtn').addEventListener('click', () => {
+            localStorage.removeItem('accent_color');
+            if (config) {
+                applyAccentColor(config.accent_color);
+                showToast('Настройки сброшены', 'success');
+            }
+        });
+
+        // Tab для примера
+        document.getElementById('promptInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                document.getElementById('promptInput').value = 'Показать всех клиентов, у которых больше 3 заказов';
+            }
+        });
+
+        // Обновление значения температуры
+        document.getElementById('temperatureSlider').addEventListener('input', (e) => {
+            document.getElementById('tempValue').textContent = e.target.value;
+        });
+
+        // Typewriter effect для объяснения
+        function typewriterEffect(element, text, speed = 20) {
+            element.textContent = '';
+            let i = 0;
+
+            function type() {
+                if (i < text.length) {
+                    element.textContent += text.charAt(i);
+                    i++;
+                    setTimeout(type, speed);
+                }
+            }
+
+            type();
+        }
+
+        // Генерация
+        document.getElementById('generateBtn').addEventListener('click', async () => {
+            const prompt = document.getElementById('promptInput').value.trim();
+            const model = document.getElementById('modelSelect').value;
+            const temperatureSlider = document.getElementById('temperatureSlider');
+            const temperature = temperatureSlider.disabled ? null : parseFloat(temperatureSlider.value);
+
+            if (!prompt) {
+                showToast('Введите запрос', 'error');
+                return;
+            }
+
+            const generateBtn = document.getElementById('generateBtn');
+            generateBtn.disabled = true;
+            generateBtn.innerHTML = '<span class="inline-block animate-spin mr-2">⏳</span> Генерирую...';
+
+            // Скрываем empty state
+            document.getElementById('emptyState').classList.add('hidden');
+
+            // Логирование в консоль
+            console.log('[SQL Assistant] Запрос отправлен:', { prompt: prompt.substring(0, 50), model, temperature });
+
+            // Запускаем progress bar
+            updateProgressBar(10);
+
+            try {
+                const payload = { prompt, model };
+                if (temperature !== null) {
+                    payload.temperature = temperature;
+                } else {
+                    // Модель не поддерживает температуру - отправляем дефолтное значение 1.0
+                    payload.temperature = 1.0;
+                }
+
+                updateProgressBar(30);
+
+                const response = await fetch('/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Secret-Key': secretKey
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.status === 401) {
+                    console.error('[SQL Assistant] Auth error: 401');
+                    showToast('Неверный ключ доступа', 'error');
+                    sessionStorage.removeItem('secret_key');
+                    setTimeout(() => location.reload(), 2000);
+                    return;
+                }
+
+                if (response.status === 429) {
+                    console.error('[SQL Assistant] Rate limit: 429');
+                    showToast('Превышен лимит запросов. Попробуйте позже.', 'error');
+                    return;
+                }
+
+                if (!response.ok) {
+                    updateProgressBar(0);
+                    const error = await response.json();
+                    const errorMsg = error.message || error.detail || 'Ошибка генерации';
+                    console.error('[SQL Assistant] API error:', error);
+                    showToast(errorMsg, 'error');
+                    return;
+                }
+
+                updateProgressBar(60);
+
+                const result = await response.json();
+                console.log('[SQL Assistant] Результат получен:', { 
+                    mermaidLength: result.mermaid_code?.length, 
+                    sqlLength: result.sql_query?.length 
+                });
+
+                // Показываем результаты с анимацией
+                const mermaidContainer = document.getElementById('mermaidContainer');
+                mermaidContainer.classList.remove('hidden');
+                
+                // Store raw code
+                document.getElementById('mermaidRawCode').textContent = result.mermaid_code;
+                document.getElementById('mermaidEditor').value = result.mermaid_code;
+
+                // Render Mermaid diagrams
+                try {
+                    updateProgressBar(70);
+                    console.log('[SQL Assistant] Starting Mermaid render with code:', result.mermaid_code.substring(0, 50) + '...');
+
+                    // Generate unique ID for this diagram
+                    const diagramId = 'mermaid-diagram-' + Date.now();
+
+                    // Use mermaid.render() to generate SVG
+                    const { svg } = await mermaid.render(diagramId, result.mermaid_code);
+
+                    // Insert the rendered SVG into the preview div
+                    const mermaidDiv = document.getElementById('mermaidPreview');
+                    mermaidDiv.innerHTML = svg;
+
+                    // Show preview mode, hide editor mode
+                    document.getElementById('mermaidPreviewContainer').classList.remove('hidden');
+                    document.getElementById('mermaidEditorContainer').classList.add('hidden');
+                    console.log('[SQL Assistant] Mermaid diagram rendered successfully');
+                } catch (e) {
+                    console.error('[SQL Assistant] Mermaid rendering failed:', e);
+                    console.error('[SQL Assistant] Mermaid code was:', result.mermaid_code);
+
+                    // Fallback to raw code view
+                    const mermaidDiv = document.getElementById('mermaidPreview');
+                    mermaidDiv.innerHTML = '';
+                    document.getElementById('mermaidRawCode').classList.remove('hidden');
+                    showToast('Диаграмма не отобразилась, показываю код', 'info');
+                }
+
+                updateProgressBar(80);
+
+                const sqlContainer = document.getElementById('sqlContainer');
+                sqlContainer.classList.remove('hidden');
+                const sqlElement = document.getElementById('sqlPreview');
+                sqlElement.textContent = result.sql_query;
+                hljs.highlightElement(sqlElement);
+
+                const explanationContainer = document.getElementById('explanationContainer');
+                explanationContainer.classList.remove('hidden');
+
+                // Typewriter эффект для объяснения с поддержкой переносов строк
+                const explanationElement = document.getElementById('explanationText');
+                explanationElement.style.whiteSpace = 'pre-wrap'; // Сохраняем переносы строк
+                typewriterEffect(explanationElement, result.explanation);
+
+                updateProgressBar(100);
+                setTimeout(() => updateProgressBar(0), 500);
+                showToast('Успешно сгенерировано!', 'success');
+            } catch (error) {
+                updateProgressBar(0);
+                console.error('[SQL Assistant] Unexpected error:', error);
+                showToast('Ошибка: ' + error.message, 'error');
+            } finally {
+                generateBtn.disabled = false;
+                generateBtn.textContent = 'Сгенерировать';
+            }
+        });
+
+        // Copy SQL
+        document.getElementById('copySqlBtn').addEventListener('click', () => {
+            const sqlText = document.getElementById('sqlPreview').textContent;
+            navigator.clipboard.writeText(sqlText).then(() => {
+                showToast('SQL скопирован в буфер обмена!', 'success');
+            }).catch(() => {
+                showToast('Ошибка копирования', 'error');
+            });
+        });
+
+        // View raw Mermaid code (toggle between rendered and raw)
+        document.getElementById('viewRawMermaidBtn').addEventListener('click', () => {
+            const mermaidRawCode = document.getElementById('mermaidRawCode');
+            const btn = document.getElementById('viewRawMermaidBtn');
+
+            const isShowingRaw = mermaidRawCode.classList.contains('hidden');
+
+            if (isShowingRaw) {
+                // Show raw code
+                mermaidRawCode.classList.remove('hidden');
+                btn.textContent = 'Скрыть сырой код';
+            } else {
+                // Hide raw code
+                mermaidRawCode.classList.add('hidden');
+                btn.textContent = 'Посмотреть сырой код';
+            }
+        });
+
+        // Download SVG
+        document.getElementById('downloadSvgBtn').addEventListener('click', () => {
+            const svgElement = document.querySelector('#mermaidPreview svg');
+
+            if (!svgElement) {
+                showToast('Нет диаграммы для скачивания', 'error');
+                return;
+            }
+
+            try {
+                // Clone SVG to avoid modifying the original
+                const svgClone = svgElement.cloneNode(true);
+
+                // Add XML namespace if not present
+                svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+
+                // Serialize SVG to string
+                const svgData = new XMLSerializer().serializeToString(svgClone);
+
+                // Create Blob
+                const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+
+                // Create download link
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `er-diagram-${Date.now()}.svg`;
+
+                // Trigger download
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                // Clean up
+                URL.revokeObjectURL(url);
+
+                showToast('SVG диаграмма скачана!', 'success');
+            } catch (e) {
+                console.error('[SQL Assistant] Failed to download SVG:', e);
+                showToast('Ошибка при скачивании SVG', 'error');
+            }
+        });
+
+        // Toggle Editor Mode
+        document.getElementById('toggleEditorBtn').addEventListener('click', () => {
+            const previewContainer = document.getElementById('mermaidPreviewContainer');
+            const editorContainer = document.getElementById('mermaidEditorContainer');
+            const btn = document.getElementById('toggleEditorBtn');
+
+            const isEditorVisible = !editorContainer.classList.contains('hidden');
+
+            if (isEditorVisible) {
+                // Switch to preview mode
+                editorContainer.classList.add('hidden');
+                previewContainer.classList.remove('hidden');
+                btn.textContent = 'Редактировать код';
+            } else {
+                // Switch to editor mode
+                previewContainer.classList.add('hidden');
+                editorContainer.classList.remove('hidden');
+                btn.textContent = 'Закрыть редактор';
+
+                // Render live preview
+                renderLivePreview();
+            }
+        });
+
+        // Update diagram from editor
+        document.getElementById('updateDiagramBtn').addEventListener('click', async () => {
+            const newCode = document.getElementById('mermaidEditor').value.trim();
+
+            if (!newCode) {
+                showToast('Код диаграммы не может быть пустым', 'error');
+                return;
+            }
+
+            try {
+                // Generate unique ID
+                const diagramId = 'mermaid-diagram-' + Date.now();
+
+                // Render new diagram
+                const { svg } = await mermaid.render(diagramId, newCode);
+
+                // Update main preview
+                document.getElementById('mermaidPreview').innerHTML = svg;
+
+                // Update stored raw code
+                document.getElementById('mermaidRawCode').textContent = newCode;
+
+                // Switch back to preview mode
+                document.getElementById('mermaidEditorContainer').classList.add('hidden');
+                document.getElementById('mermaidPreviewContainer').classList.remove('hidden');
+                document.getElementById('toggleEditorBtn').textContent = 'Редактировать код';
+
+                showToast('Диаграмма обновлена!', 'success');
+            } catch (e) {
+                console.error('[SQL Assistant] Failed to render edited diagram:', e);
+                showToast('Ошибка в коде диаграммы: ' + e.message, 'error');
+            }
+        });
+
+        // Cancel editing
+        document.getElementById('cancelEditBtn').addEventListener('click', () => {
+            // Restore original code
+            const originalCode = document.getElementById('mermaidRawCode').textContent;
+            document.getElementById('mermaidEditor').value = originalCode;
+
+            // Switch back to preview mode
+            document.getElementById('mermaidEditorContainer').classList.add('hidden');
+            document.getElementById('mermaidPreviewContainer').classList.remove('hidden');
+            document.getElementById('toggleEditorBtn').textContent = 'Редактировать код';
+        });
+
+        // Live preview while editing
+        let livePreviewTimeout;
+        document.getElementById('mermaidEditor').addEventListener('input', () => {
+            clearTimeout(livePreviewTimeout);
+            livePreviewTimeout = setTimeout(renderLivePreview, 500); // Debounce 500ms
+        });
+
+        // Render live preview function
+        async function renderLivePreview() {
+            const code = document.getElementById('mermaidEditor').value.trim();
+            const livePreviewDiv = document.getElementById('mermaidLivePreview');
+
+            if (!code) {
+                livePreviewDiv.innerHTML = '<p class="text-gray-500 text-sm">Введите код диаграммы...</p>';
+                return;
+            }
+
+            try {
+                const diagramId = 'mermaid-live-' + Date.now();
+                const { svg } = await mermaid.render(diagramId, code);
+                livePreviewDiv.innerHTML = svg;
+            } catch (e) {
+                livePreviewDiv.innerHTML = `<p class="text-red-400 text-sm">Ошибка: ${e.message}</p>`;
+            }
+        }
+
+        // Progress bar update
+        function updateProgressBar(percent) {
+            const bar = document.getElementById('progressBar');
+            bar.style.width = percent + '%';
+            if (percent === 0) {
+                setTimeout(() => {
+                    bar.style.width = '0%';
+                }, 300);
+            }
+        }
+
+        // Toast notifications
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            const bgColor = {
+                'success': 'bg-green-600',
+                'error': 'bg-red-600',
+                'info': 'bg-blue-600'
+            }[type] || 'bg-blue-600';
+            
+            toast.className = `${bgColor} text-white px-4 py-3 rounded shadow-lg animate-slide-in`;
+            toast.textContent = message;
+            
+            const container = document.getElementById('toastContainer');
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 4000);
+        }
+    </script>
+
+    <style>
+        @keyframes slide-in {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes fade-in {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-slide-in {
+            animation: slide-in 0.3s cubic-bezier(0.2, 0, 0, 1);
+        }
+
+        .animate-fade-in {
+            animation: fade-in 0.4s cubic-bezier(0.2, 0, 0, 1);
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+
+        /* Custom range slider styling */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+        }
+
+        input[type="range"]::-webkit-slider-track {
+            background: #374151;
+            height: 8px;
+            border-radius: 4px;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--accent-color);
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            box-shadow: 0 0 0 8px rgba(103, 80, 164, 0.1);
+        }
+
+        input[type="range"]:disabled::-webkit-slider-thumb {
+            background: #6b7280;
+            cursor: not-allowed;
+        }
+
+        input[type="range"]::-moz-range-track {
+            background: #374151;
+            height: 8px;
+            border-radius: 4px;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--accent-color);
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .w-80 {
+                width: 100%;
+            }
+
+            #mainApp {
+                flex-direction: column;
+            }
+        }
+    </style>
+</body>
+</html>
