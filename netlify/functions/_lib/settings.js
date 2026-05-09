@@ -2,7 +2,11 @@ const fs = require("node:fs");
 const path = require("node:path");
 const dotenv = require("dotenv");
 
-dotenv.config({ path: path.resolve(process.cwd(), ".env") });
+for (const envPath of [path.resolve(process.cwd(), ".env"), path.resolve(__dirname, "../../../.env")]) {
+  if (fs.existsSync(envPath)) {
+    dotenv.config({ path: envPath });
+  }
+}
 
 let bundledConfig = null;
 try {
@@ -33,8 +37,10 @@ function loadConfig() {
 }
 
 function getEnvSettings() {
+  const OPENAI_API_KEY = process.env.OPENAI_API_KEY || process.env.OPENAI_KEY || "";
+
   return {
-    OPENAI_API_KEY: process.env.OPENAI_API_KEY || "",
+    OPENAI_API_KEY,
     SECRET_KEY_HASH: process.env.SECRET_KEY_HASH || ""
   };
 }

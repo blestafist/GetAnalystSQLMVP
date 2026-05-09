@@ -6,16 +6,21 @@ const path = require("node:path");
  * - WARNING и ERROR пишем и в консоль, и в logs/app.log.
  * - INFO/DEBUG оставляем в консоли для локальной отладки.
  */
-const LOG_DIR = path.resolve(process.cwd(), "logs");
-const LOG_FILE = path.join(LOG_DIR, "app.log");
+const LOG_CANDIDATES = [
+  path.resolve(process.cwd(), "logs", "app.log"),
+  path.resolve("/tmp/getanalyst/logs/app.log")
+];
 
-function ensureLogFile() {
-  if (!fs.existsSync(LOG_DIR)) {
-    fs.mkdirSync(LOG_DIR, { recursive: true });
+function resolveWritableLogFile() {
+  for (const filePath of LOG_CANDIDATES) {
+    try {
+      const dir = path.dirname(filePath);
+      fs.mkdirSync(dir, { recursive: true });
+      fs.appendFileSync(filePath, "", "utf-8");
+      return filePath;
+    } catch (_error) {}
   }
-  if (!fs.existsSync(LOG_FILE)) {
-    fs.writeFileSync(LOG_FILE, "", "utf-8");
-  }
+  return null;
 }
 
 function timestamp() {
@@ -26,8 +31,14 @@ function write(level, moduleName, message) {
   const line = `[${timestamp()}] [${level}] [${moduleName}] — ${message}`;
   console.log(line);
   if (level === "WARNING" || level === "ERROR") {
-    ensureLogFile();
-    fs.appendFileSync(LOG_FILE, `${line}\n`, "utf-8");
+    const logFile = resolveWritableLogFile();
+    if (!logFile) {
+      return;
+    }
+
+    try {
+      fs.appendFileSync(logFile, `${line}\n`, "utf-8");
+    } catch (_error) {}
   }
 }
 
@@ -41,4 +52,3 @@ function createLogger(moduleName = "sql_assistant") {
 }
 
 module.exports = { createLogger };
-

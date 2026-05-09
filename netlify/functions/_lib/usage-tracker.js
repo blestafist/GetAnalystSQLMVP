@@ -11,17 +11,35 @@ const logger = createLogger("usage_tracker");
  */
 class UsageTracker {
   constructor() {
-    this.usageFile = path.resolve(process.cwd(), "usage.json");
+    this.usageFile = this.resolveUsageFilePath();
     this.ensureUsageFile();
   }
 
+  resolveUsageFilePath() {
+    const candidates = [path.resolve(process.cwd(), "usage.json"), path.resolve("/tmp/getanalyst/usage.json")];
+
+    for (const candidate of candidates) {
+      try {
+        fs.mkdirSync(path.dirname(candidate), { recursive: true });
+        fs.appendFileSync(candidate, "", "utf-8");
+        return candidate;
+      } catch (_error) {}
+    }
+
+    return candidates[0];
+  }
+
   ensureUsageFile() {
-    if (!fs.existsSync(this.usageFile) || fs.statSync(this.usageFile).size === 0) {
-      fs.writeFileSync(
-        this.usageFile,
-        JSON.stringify({ calls: 0, total_tokens: 0, log: [] }, null, 2),
-        "utf-8"
-      );
+    try {
+      if (!fs.existsSync(this.usageFile) || fs.statSync(this.usageFile).size === 0) {
+        fs.writeFileSync(
+          this.usageFile,
+          JSON.stringify({ calls: 0, total_tokens: 0, log: [] }, null, 2),
+          "utf-8"
+        );
+      }
+    } catch (error) {
+      logger.warning(`Usage storage unavailable: ${error.message}`);
     }
   }
 
@@ -82,4 +100,3 @@ class UsageTracker {
 }
 
 module.exports = { UsageTracker };
-
