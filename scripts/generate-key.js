@@ -3,8 +3,6 @@
  * Утилита генерации SecretKey и bcrypt-хэша (JS-эквивалент Python-скрипта).
  *
  * Запуск:
- *   npm run generate:key
- *   или
  *   node scripts/generate-key.js
  *
  * Вывод:
