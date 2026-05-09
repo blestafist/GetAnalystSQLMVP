@@ -26,6 +26,5 @@
   "rate_limit": {
     "requests_per_minute": 10
   },
-  "accent_color": "#27F565"
+  "accent_color": "#FFB26E"
 }
-
