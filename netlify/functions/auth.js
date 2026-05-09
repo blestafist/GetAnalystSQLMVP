@@ -1,4 +1,4 @@
-const { getSettings } = require("./_lib/settings");
+const { getEnvSettings } = require("./_lib/settings");
 const { verifySecretKey } = require("./_lib/auth");
 const { ok, fail, BASE_HEADERS } = require("./_lib/http");
 const { SQLAssistantError } = require("./_lib/errors");
@@ -17,7 +17,7 @@ exports.handler = async (event) => {
   }
 
   try {
-    const settings = getSettings();
+    const settings = getEnvSettings();
     verifySecretKey(event.headers || {}, settings.SECRET_KEY_HASH);
     return ok({ authenticated: true });
   } catch (error) {
