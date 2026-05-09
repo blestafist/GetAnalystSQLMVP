@@ -7,7 +7,6 @@ env/
 
 # Node
 node_modules/
-.netlify/
 npm-debug.log*
 
 # IDE
