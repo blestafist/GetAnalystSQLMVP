@@ -65,12 +65,29 @@ SQL QUERY REQUIREMENTS:
 - Comment complex logic inline if needed
 - MUST be valid PostgreSQL syntax
 
+EXPLANATION REQUIREMENTS:
+Your explanation must be concise and clear. Write in plain Russian text without any markdown formatting.
+Provide a brief 2-3 sentence explanation that covers:
+1. What the query does (the goal)
+2. Key operations (JOINs, GROUP BY, aggregates, filters)
+3. What result the user gets
+
+FORMATTING RULES FOR EXPLANATION:
+- Write in plain Russian text
+- NO markdown formatting (no **, no ##, no bullets, no lists)
+- Use line breaks between sentences (use \n\n for paragraph breaks)
+- Keep it concise: 2-3 sentences maximum
+- Make it readable as plain text
+
+Example of good explanation:
+"Запрос получает список клиентов с более чем 3 заказами. Используется JOIN между таблицами CUSTOMERS и ORDERS, затем GROUP BY группирует по клиентам и HAVING фильтрует тех у кого COUNT больше 3.\n\nРезультат: имена клиентов и количество их заказов, отсортированные по убыванию."
+
 RESPONSE FORMAT:
 Respond with ONLY a valid JSON object. No markdown, no code fences, no text outside JSON.
 {
   "mermaid_code": "erDiagram\\n  TABLE1 ||--o{ TABLE2 : relationship\\n  TABLE1 {\\n    int id PK\\n    string name\\n  }",
   "sql_query": "SELECT * FROM table WHERE condition ORDER BY column;",
-  "explanation": "Brief explanation in Russian (1-2 sentences max). Describe what the query does."
+  "explanation": "Detailed explanation in Russian following the structure above (4-6 sentences)."
 }
 
 CRITICAL:
