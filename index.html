@@ -277,7 +277,7 @@
 
                     <!-- Preview mode -->
                     <div id="mermaidPreviewContainer" class="bg-gray-900 rounded-xl p-4">
-                        <div id="mermaidPreview"></div>
+                        <img id="mermaidPreview" class="max-w-none" alt="ER Diagram" />
                     </div>
 
                     <!-- Editor mode (hidden by default) -->
@@ -761,39 +761,28 @@
                 // Render Mermaid diagrams
                 try {
                     updateProgressBar(70);
-                    console.log('[SQL Assistant] Starting Mermaid render with code:', result.mermaid_code.substring(0, 50) + '...');
+                    console.log('[SQL Assistant] Generating Mermaid image URL');
 
-                    // Generate unique ID for this diagram
-                    const diagramId = 'mermaid-diagram-' + Date.now();
+                    // Convert Mermaid code to base64 and create mermaid.ink URL
+                    const cleanCode = result.mermaid_code.trim();
+                    const base64Code = btoa(unescape(encodeURIComponent(cleanCode)));
+                    const mermaidUrl = `https://mermaid.ink/img/${base64Code}`;
 
-                    // Use mermaid.render() to generate SVG
-                    const { svg } = await mermaid.render(diagramId, result.mermaid_code);
-
-                    // Insert the rendered SVG into the preview div
-                    const mermaidDiv = document.getElementById('mermaidPreview');
-                    mermaidDiv.innerHTML = svg;
-
-                    // Force SVG to use natural dimensions (prevent cropping)
-                    const svgElement = mermaidDiv.querySelector('svg');
-                    if (svgElement) {
-                        svgElement.removeAttribute('height');
-                        svgElement.style.maxWidth = 'none';
-                        svgElement.style.height = 'auto';
-                    }
+                    // Set image source
+                    const mermaidImg = document.getElementById('mermaidPreview');
+                    mermaidImg.src = mermaidUrl;
+                    mermaidImg.onerror = () => {
+                        console.error('[SQL Assistant] Mermaid.ink failed to load image');
+                        showToast('Ошибка загрузки диаграммы', 'error');
+                    };
 
                     // Show preview mode, hide editor mode
                     document.getElementById('mermaidPreviewContainer').classList.remove('hidden');
                     document.getElementById('mermaidEditorContainer').classList.add('hidden');
-                    console.log('[SQL Assistant] Mermaid diagram rendered successfully');
+                    console.log('[SQL Assistant] Mermaid diagram URL generated successfully');
                 } catch (e) {
-                    console.error('[SQL Assistant] Mermaid rendering failed:', e);
-                    console.error('[SQL Assistant] Mermaid code was:', result.mermaid_code);
-
-                    // Fallback to raw code view
-                    const mermaidDiv = document.getElementById('mermaidPreview');
-                    mermaidDiv.innerHTML = '';
-                    document.getElementById('mermaidRawCode').classList.remove('hidden');
-                    showToast('Диаграмма не отобразилась, показываю код', 'info');
+                    console.error('[SQL Assistant] Mermaid URL generation failed:', e);
+                    showToast('Диаграмма не отобразилась', 'error');
                 }
 
                 updateProgressBar(80);
@@ -855,50 +844,27 @@
 
         // Download SVG
         document.getElementById('downloadSvgBtn').addEventListener('click', () => {
-            const svgElement = document.querySelector('#mermaidPreview svg');
+            const mermaidImg = document.getElementById('mermaidPreview');
 
-            if (!svgElement) {
+            if (!mermaidImg.src) {
                 showToast('Нет диаграммы для скачивания', 'error');
                 return;
             }
 
             try {
-                // Clone SVG to avoid modifying the original
-                const svgClone = svgElement.cloneNode(true);
-
-                // Ensure SVG has proper dimensions
-                const bbox = svgElement.getBBox();
-                svgClone.setAttribute('width', bbox.width);
-                svgClone.setAttribute('height', bbox.height);
-                svgClone.setAttribute('viewBox', `${bbox.x} ${bbox.y} ${bbox.width} ${bbox.height}`);
-
-                // Add XML namespace if not present
-                svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-
-                // Serialize SVG to string
-                const svgData = new XMLSerializer().serializeToString(svgClone);
-
-                // Create Blob
-                const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-
-                // Create download link
-                const url = URL.createObjectURL(blob);
+                // Download the image from mermaid.ink
                 const link = document.createElement('a');
-                link.href = url;
+                link.href = mermaidImg.src;
                 link.download = `er-diagram-${Date.now()}.svg`;
-
-                // Trigger download
+                link.target = '_blank';
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
 
-                // Clean up
-                URL.revokeObjectURL(url);
-
-                showToast('SVG диаграмма скачана!', 'success');
-            } catch (e) {
-                console.error('[SQL Assistant] Failed to download SVG:', e);
-                showToast('Ошибка при скачивании SVG', 'error');
+                showToast('Диаграмма скачана', 'success');
+            } catch (error) {
+                console.error('[SQL Assistant] Download failed:', error);
+                showToast('Ошибка скачивания', 'error');
             }
         });
 
@@ -936,22 +902,13 @@
             }
 
             try {
-                // Generate unique ID
-                const diagramId = 'mermaid-diagram-' + Date.now();
-
-                // Render new diagram
-                const { svg } = await mermaid.render(diagramId, newCode);
+                // Generate mermaid.ink URL
+                const base64Code = btoa(unescape(encodeURIComponent(newCode)));
+                const mermaidUrl = `https://mermaid.ink/img/${base64Code}`;
 
                 // Update main preview
-                document.getElementById('mermaidPreview').innerHTML = svg;
-
-                // Force SVG to use natural dimensions
-                const svgElement = document.querySelector('#mermaidPreview svg');
-                if (svgElement) {
-                    svgElement.removeAttribute('height');
-                    svgElement.style.maxWidth = 'none';
-                    svgElement.style.height = 'auto';
-                }
+                const mermaidImg = document.getElementById('mermaidPreview');
+                mermaidImg.src = mermaidUrl;
 
                 // Update stored raw code
                 document.getElementById('mermaidRawCode').textContent = newCode;
@@ -963,7 +920,7 @@
 
                 showToast('Диаграмма обновлена!', 'success');
             } catch (e) {
-                console.error('[SQL Assistant] Failed to render edited diagram:', e);
+                console.error('[SQL Assistant] Failed to update diagram:', e);
                 showToast('Ошибка в коде диаграммы: ' + e.message, 'error');
             }
         });
@@ -998,17 +955,9 @@
             }
 
             try {
-                const diagramId = 'mermaid-live-' + Date.now();
-                const { svg } = await mermaid.render(diagramId, code);
-                livePreviewDiv.innerHTML = svg;
-
-                // Force SVG to use natural dimensions
-                const svgElement = livePreviewDiv.querySelector('svg');
-                if (svgElement) {
-                    svgElement.removeAttribute('height');
-                    svgElement.style.maxWidth = 'none';
-                    svgElement.style.height = 'auto';
-                }
+                const base64Code = btoa(unescape(encodeURIComponent(code)));
+                const mermaidUrl = `https://mermaid.ink/img/${base64Code}`;
+                livePreviewDiv.innerHTML = `<img src="${mermaidUrl}" class="max-w-none" alt="Live Preview" />`;
             } catch (e) {
                 livePreviewDiv.innerHTML = `<p class="text-red-400 text-sm">Ошибка: ${e.message}</p>`;
             }
