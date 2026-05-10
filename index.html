@@ -262,7 +262,7 @@
                 </div>
 
                 <!-- ER Diagram -->
-                <div id="mermaidContainer" class="hidden bg-gray-800 rounded-2xl p-6 elevation-2">
+                <div id="mermaidContainer" class="hidden bg-gray-800 rounded-2xl p-6 elevation-2 overflow-x-auto">
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="text-xl font-bold accent-text">ER-диаграмма</h3>
                         <div class="flex gap-2">
@@ -276,8 +276,8 @@
                     </div>
 
                     <!-- Preview mode -->
-                    <div id="mermaidPreviewContainer" class="bg-gray-900 rounded-xl p-4 overflow-x-auto">
-                        <div id="mermaidPreview" class="inline-block"></div>
+                    <div id="mermaidPreviewContainer" class="bg-gray-900 rounded-xl p-4">
+                        <div id="mermaidPreview"></div>
                     </div>
 
                     <!-- Editor mode (hidden by default) -->
@@ -298,9 +298,9 @@
                             </button>
                         </div>
                         <!-- Live preview in editor mode -->
-                        <div class="bg-gray-900 rounded-xl p-4 overflow-x-auto">
+                        <div class="bg-gray-900 rounded-xl p-4">
                             <h4 class="text-sm font-medium text-gray-400 mb-2">Предварительный просмотр:</h4>
-                            <div id="mermaidLivePreview" class="inline-block"></div>
+                            <div id="mermaidLivePreview"></div>
                         </div>
                     </div>
 
