@@ -391,6 +391,12 @@
                 mermaid.initialize({
                     startOnLoad: false,
                     theme: 'dark',
+                    er: {
+                        useMaxWidth: false
+                    },
+                    flowchart: {
+                        useMaxWidth: false
+                    },
                     themeVariables: {
                         'primaryColor': color,
                         'primaryTextColor': '#ffffff',
@@ -722,10 +728,27 @@
                 updateProgressBar(60);
 
                 const result = await response.json();
-                console.log('[SQL Assistant] Результат получен:', { 
-                    mermaidLength: result.mermaid_code?.length, 
-                    sqlLength: result.sql_query?.length 
+                console.log('[SQL Assistant] Результат получен:', {
+                    mermaidLength: result.mermaid_code?.length,
+                    sqlLength: result.sql_query?.length,
+                    usage: result._usage
                 });
+
+                // Store usage data in sessionStorage for cumulative tracking
+                if (result._usage) {
+                    let sessionUsage = JSON.parse(sessionStorage.getItem('session_usage') || '{"calls": 0, "total_tokens": 0, "log": []}');
+                    sessionUsage.calls += 1;
+                    sessionUsage.total_tokens += result._usage.total_tokens;
+                    sessionUsage.log.push({
+                        timestamp: new Date().toISOString(),
+                        model: model,
+                        prompt_tokens: result._usage.prompt_tokens,
+                        completion_tokens: result._usage.completion_tokens,
+                        total_tokens: result._usage.total_tokens,
+                        temperature: temperature
+                    });
+                    sessionStorage.setItem('session_usage', JSON.stringify(sessionUsage));
+                }
 
                 // Показываем результаты с анимацией
                 const mermaidContainer = document.getElementById('mermaidContainer');
@@ -749,6 +772,14 @@
                     // Insert the rendered SVG into the preview div
                     const mermaidDiv = document.getElementById('mermaidPreview');
                     mermaidDiv.innerHTML = svg;
+
+                    // Force SVG to use natural dimensions (prevent cropping)
+                    const svgElement = mermaidDiv.querySelector('svg');
+                    if (svgElement) {
+                        svgElement.removeAttribute('height');
+                        svgElement.style.maxWidth = 'none';
+                        svgElement.style.height = 'auto';
+                    }
 
                     // Show preview mode, hide editor mode
                     document.getElementById('mermaidPreviewContainer').classList.remove('hidden');
@@ -835,6 +866,12 @@
                 // Clone SVG to avoid modifying the original
                 const svgClone = svgElement.cloneNode(true);
 
+                // Ensure SVG has proper dimensions
+                const bbox = svgElement.getBBox();
+                svgClone.setAttribute('width', bbox.width);
+                svgClone.setAttribute('height', bbox.height);
+                svgClone.setAttribute('viewBox', `${bbox.x} ${bbox.y} ${bbox.width} ${bbox.height}`);
+
                 // Add XML namespace if not present
                 svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
 
@@ -908,6 +945,14 @@
                 // Update main preview
                 document.getElementById('mermaidPreview').innerHTML = svg;
 
+                // Force SVG to use natural dimensions
+                const svgElement = document.querySelector('#mermaidPreview svg');
+                if (svgElement) {
+                    svgElement.removeAttribute('height');
+                    svgElement.style.maxWidth = 'none';
+                    svgElement.style.height = 'auto';
+                }
+
                 // Update stored raw code
                 document.getElementById('mermaidRawCode').textContent = newCode;
 
@@ -956,6 +1001,14 @@
                 const diagramId = 'mermaid-live-' + Date.now();
                 const { svg } = await mermaid.render(diagramId, code);
                 livePreviewDiv.innerHTML = svg;
+
+                // Force SVG to use natural dimensions
+                const svgElement = livePreviewDiv.querySelector('svg');
+                if (svgElement) {
+                    svgElement.removeAttribute('height');
+                    svgElement.style.maxWidth = 'none';
+                    svgElement.style.height = 'auto';
+                }
             } catch (e) {
                 livePreviewDiv.innerHTML = `<p class="text-red-400 text-sm">Ошибка: ${e.message}</p>`;
             }
@@ -995,17 +1048,13 @@
         // View Usage Statistics
         document.getElementById('viewUsageBtn').addEventListener('click', async () => {
             try {
-                const response = await fetchJsonWithFallback(['/usage', '/.netlify/functions/usage'], {
-                    method: 'GET',
-                    headers: {
-                        'X-Secret-Key': secretKey
-                    }
-                });
+                // Get session usage from sessionStorage (client-side tracking)
+                const sessionUsage = JSON.parse(sessionStorage.getItem('session_usage') || '{"calls": 0, "total_tokens": 0, "log": []}');
 
                 // Format usage data for display
-                const totalCalls = response.calls || 0;
-                const totalTokens = response.total_tokens || 0;
-                const logEntries = response.log || [];
+                const totalCalls = sessionUsage.calls || 0;
+                const totalTokens = sessionUsage.total_tokens || 0;
+                const logEntries = sessionUsage.log || [];
 
                 let usageHtml = `
                     <div class="space-y-4">
@@ -1019,8 +1068,8 @@
                                 <div class="text-2xl font-bold accent-text">${totalTokens.toLocaleString()}</div>
                             </div>
                         </div>
-                        <div class="text-xs text-gray-500 bg-yellow-900/20 border border-yellow-700 p-3 rounded">
-                            ⚠️ В serverless окружении (Netlify) статистика хранится в памяти и сбрасывается при каждом cold start функции.
+                        <div class="text-xs text-gray-500 bg-blue-900/20 border border-blue-700 p-3 rounded">
+                            ℹ️ Статистика хранится в браузере (sessionStorage) и сбрасывается при закрытии вкладки.
                         </div>
                 `;
 
@@ -1041,7 +1090,7 @@
                                 </div>
                                 <div class="text-gray-300">
                                     Токены: ${entry.prompt_tokens} + ${entry.completion_tokens} = ${entry.total_tokens}
-                                    ${entry.temperature !== undefined ? ` | T: ${entry.temperature}` : ''}
+                                    ${entry.temperature !== undefined && entry.temperature !== null ? ` | T: ${entry.temperature}` : ''}
                                 </div>
                             </div>
                         `;
@@ -1081,8 +1130,8 @@
                 });
 
             } catch (error) {
-                console.error('[SQL Assistant] Usage fetch error:', error);
-                showToast('Ошибка загрузки статистики: ' + error.message, 'error');
+                console.error('[SQL Assistant] Usage display error:', error);
+                showToast('Ошибка отображения статистики: ' + error.message, 'error');
             }
         });
     </script>

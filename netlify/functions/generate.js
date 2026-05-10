@@ -130,7 +130,12 @@ exports.handler = async (event) => {
     return ok({
       mermaid_code: result.mermaid_code,
       sql_query: result.sql_query,
-      explanation: result.explanation
+      explanation: result.explanation,
+      _usage: {
+        prompt_tokens: usage.prompt_tokens,
+        completion_tokens: usage.completion_tokens,
+        total_tokens: usage.total_tokens
+      }
     });
   } catch (error) {
     logger.error(error.message || "Unknown generate error");
