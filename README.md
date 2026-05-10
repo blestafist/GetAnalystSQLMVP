@@ -21,8 +21,8 @@ A modern, production-ready application for generating database schemas, SQL quer
 
 ## 📸 Screenshots
 
-| Successful Generation | Security Validation (Off-Topic) | Security Validation (Injection) |
-| :---: | :---: | :---: |
+| Successful Generation                 | Security Validation (Off-Topic)            | Security Validation (Injection)           |
+|:-------------------------------------:|:------------------------------------------:|:-----------------------------------------:|
 | ![Success](./screenshots/success.png) | ![Off-Topic](./screenshots/unrelevant.png) | ![Injection](./screenshots/injection.png) |
 
 ---
