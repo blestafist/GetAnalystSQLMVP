@@ -4,6 +4,17 @@ const { createLogger } = require("./logger");
 
 const logger = createLogger("validator");
 
+/**
+ * Валидатор промптов для защиты от injection и off-topic запросов.
+ *
+ * Использует быструю модель gpt-5.4-nano для проверки промптов перед основной генерацией.
+ * Проверяет три категории:
+ * - Пустые промпты (алгоритмическая проверка)
+ * - Prompt injection (попытки изменить поведение системы)
+ * - Off-topic запросы (не связанные с базами данных/SQL)
+ *
+ * Работает в режиме fail-open: если валидатор сам упал, запрос пропускается.
+ */
 class PromptValidator {
   constructor(apiKey, validationModel = "gpt-5.4-nano") {
     this.client = new OpenAI({ apiKey });
@@ -48,10 +59,21 @@ OR
   }
 
   /**
-   * Полная проверка промпта:
-   * - пустой prompt отсекаем сразу
-   * - затем быстрая LLM-валидация
-   * - при сбое валидатора используем fail-open (как было в Python)
+   * Проверяет промпт на безопасность и релевантность.
+   *
+   * @param {string} prompt - Текстовый запрос пользователя для проверки
+   *
+   * @returns {Promise<Object>} Результат валидации
+   * @returns {boolean} return.valid - true если промпт прошёл проверку
+   * @returns {string} return.reason - "ok" | "injection" | "off_topic"
+   * @returns {string} return.validator_response - Сырой ответ валидатора (для логирования)
+   *
+   * @throws {PromptInjectionError} Если обнаружена попытка prompt injection
+   * @throws {OffTopicError} Если запрос не связан с базами данных/SQL
+   *
+   * @example
+   * const result = await validator.validate("Показать всех клиентов");
+   * // result = { valid: true, reason: "ok", validator_response: '{"valid": true, "reason": "ok"}' }
    */
   async validate(prompt) {
     if (!prompt || !prompt.trim()) {
@@ -103,10 +125,22 @@ OR
   }
 
   /**
-   * Нормализация JSON-ответа валидатора:
-   * - убираем markdown fences
-   * - вырезаем JSON-объект
-   * - если парсинг не удался, возвращаем valid=true (fail-open)
+   * Нормализует и парсит JSON-ответ валидатора.
+   *
+   * Применяет те же техники, что и LLMService.parseLLMResponse:
+   * - Удаляет markdown code fences
+   * - Извлекает JSON-объект
+   * - Парсит и валидирует структуру
+   *
+   * В режиме fail-open: при любой ошибке парсинга возвращает {valid: true, reason: "ok"}.
+   *
+   * @param {string} raw - Сырой ответ от валидатора
+   *
+   * @returns {Object} Распарсенный результат: {valid: boolean, reason: string}
+   *
+   * @example
+   * const result = this.parseValidationResponse('{"valid": false, "reason": "off_topic"}');
+   * // result = { valid: false, reason: "off_topic" }
    */
   parseValidationResponse(raw) {
     let cleaned = raw.trim();

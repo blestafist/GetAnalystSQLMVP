@@ -4,6 +4,17 @@ const { createLogger } = require("./logger");
 
 const logger = createLogger("llm");
 
+/**
+ * Сервис для генерации SQL-запросов и ER-диаграмм через OpenAI API.
+ *
+ * Использует системный промпт для получения структурированного JSON-ответа:
+ * - mermaid_code: ER-диаграмма в формате Mermaid.js
+ * - sql_query: PostgreSQL запрос
+ * - explanation: Объяснение на русском языке
+ *
+ * Включает многоступенчатый парсер для нормализации ответов LLM
+ * (удаление markdown fences, извлечение JSON, валидация структуры).
+ */
 class LLMService {
   constructor(apiKey) {
     this.client = new OpenAI({ apiKey });
@@ -40,11 +51,33 @@ CRITICAL:
   }
 
   /**
-   * Основной вызов OpenAI:
-   * 1) формируем параметры запроса
-   * 2) вызываем модель
-   * 3) парсим/валидируем JSON
-   * 4) прикрепляем usage для usage-tracker
+   * Генерирует SQL-запрос и ER-диаграмму на основе текстового промпта.
+   *
+   * @param {string} prompt - Текстовый запрос пользователя на естественном языке
+   * @param {string} model - ID модели OpenAI (например, "gpt-5.4")
+   * @param {number|null} [temperature=null] - Температура генерации (0.0-2.0) или null для дефолта модели
+   *
+   * @returns {Promise<Object>} Результат генерации
+   * @returns {string} return.mermaid_code - ER-диаграмма в формате Mermaid.js
+   * @returns {string} return.sql_query - PostgreSQL запрос
+   * @returns {string} return.explanation - Объяснение на русском языке
+   * @returns {Object} return._usage - Статистика использования токенов (для трекинга)
+   *
+   * @throws {LLMParseError} Если не удалось распарсить ответ LLM
+   * @throws {LLMAPIError} Если произошла ошибка вызова OpenAI API
+   *
+   * @example
+   * const result = await llmService.generate(
+   *   "Показать всех клиентов с более чем 3 заказами",
+   *   "gpt-5.4",
+   *   0.7
+   * );
+   * // result = {
+   * //   mermaid_code: "erDiagram\n  CUSTOMERS ||--o{ ORDERS : places\n  ...",
+   * //   sql_query: "SELECT c.name, COUNT(o.id) ...",
+   * //   explanation: "Запрос джойнит таблицы...",
+   * //   _usage: { prompt_tokens: 312, completion_tokens: 480, total_tokens: 792 }
+   * // }
    */
   async generate(prompt, model, temperature = null) {
     try {
@@ -83,11 +116,23 @@ CRITICAL:
   }
 
   /**
-   * Многоступенчатый парсер ответа LLM (1:1 с Python-версией):
-   * - удаляем markdown fences
-   * - вырезаем участок от первого "{" до последнего "}"
-   * - JSON.parse
-   * - проверяем обязательные ключи и старт mermaid с erDiagram
+   * Многоступенчатый парсер ответа LLM (идентичен Python-версии).
+   *
+   * Применяет последовательные нормализации:
+   * 1. Удаляет markdown code fences (```json ... ``` или ``` ... ```)
+   * 2. Извлекает JSON-объект (от первого "{" до последнего "}")
+   * 3. Парсит JSON и валидирует структуру
+   * 4. Проверяет наличие обязательных ключей
+   * 5. Проверяет, что mermaid_code начинается с "erDiagram"
+   *
+   * @param {string} raw - Сырой ответ от OpenAI API
+   *
+   * @returns {Object} Распарсенный объект с ключами: mermaid_code, sql_query, explanation
+   *
+   * @throws {LLMParseError} Если не найден JSON-объект, парсинг не удался, или отсутствуют обязательные ключи
+   *
+   * @example
+   * const parsed = this.parseLLMResponse('```json\n{"mermaid_code": "erDiagram...", ...}\n```');
    */
   parseLLMResponse(raw) {
     const cleaned = raw

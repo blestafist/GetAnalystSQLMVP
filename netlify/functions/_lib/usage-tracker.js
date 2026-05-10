@@ -5,9 +5,16 @@ const { createLogger } = require("./logger");
 const logger = createLogger("usage_tracker");
 
 /**
- * Для локальной разработки пишем usage в usage.json в корне проекта.
- * В serverless production файловая система эфемерная, поэтому запись best-effort:
- * приложение продолжит работать, даже если запись статистики недоступна.
+ * Трекер использования токенов OpenAI API.
+ *
+ * Записывает статистику вызовов в usage.json:
+ * - Общее количество вызовов
+ * - Суммарное количество токенов
+ * - Детальный лог каждого запроса с timestamp, моделью, токенами
+ *
+ * Для локальной разработки пишет в корень проекта.
+ * В serverless окружении (Netlify) пытается писать в /tmp (эфемерное хранилище).
+ * Ошибки записи не прерывают основной запрос (best-effort logging).
  */
 class UsageTracker {
   constructor() {
@@ -15,6 +22,15 @@ class UsageTracker {
     this.ensureUsageFile();
   }
 
+  /**
+   * Определяет доступный путь для записи usage.json.
+   *
+   * Пробует кандидатов в порядке приоритета:
+   * 1. ./usage.json (локальная разработка)
+   * 2. /tmp/getanalyst/usage.json (serverless окружение)
+   *
+   * @returns {string} Путь к файлу usage.json (может быть недоступен для записи)
+   */
   resolveUsageFilePath() {
     const candidates = [path.resolve(process.cwd(), "usage.json"), path.resolve("/tmp/getanalyst/usage.json")];
 
@@ -29,6 +45,11 @@ class UsageTracker {
     return candidates[0];
   }
 
+  /**
+   * Создаёт usage.json с начальной структурой, если файл не существует.
+   *
+   * @throws Не выбрасывает исключения - логирует предупреждение при ошибке
+   */
   ensureUsageFile() {
     try {
       if (!fs.existsSync(this.usageFile) || fs.statSync(this.usageFile).size === 0) {
@@ -43,6 +64,14 @@ class UsageTracker {
     }
   }
 
+  /**
+   * Читает текущую статистику из usage.json.
+   *
+   * @returns {Object} Объект статистики: {calls: number, total_tokens: number, log: Array}
+   * @returns {number} return.calls - Общее количество вызовов API
+   * @returns {number} return.total_tokens - Суммарное количество токенов
+   * @returns {Array} return.log - Массив записей с деталями каждого вызова
+   */
   readUsage() {
     try {
       return JSON.parse(fs.readFileSync(this.usageFile, "utf-8"));
@@ -51,13 +80,37 @@ class UsageTracker {
     }
   }
 
+  /**
+   * Записывает обновлённую статистику в usage.json.
+   *
+   * @param {Object} data - Объект статистики для записи
+   */
   writeUsage(data) {
     fs.writeFileSync(this.usageFile, JSON.stringify(data, null, 2), "utf-8");
   }
 
   /**
-   * Фиксирует статистику вызова OpenAI.
+   * Фиксирует статистику вызова OpenAI API.
+   *
+   * Добавляет запись в лог и обновляет счётчики.
    * Ошибки записи намеренно не пробрасываются, чтобы не ломать основной ответ пользователю.
+   *
+   * @param {Object} params - Параметры вызова для трекинга
+   * @param {string} params.model - ID модели OpenAI (например, "gpt-5.4")
+   * @param {number} params.promptTokens - Количество токенов в промпте
+   * @param {number} params.completionTokens - Количество токенов в ответе
+   * @param {number|null} [params.temperature=null] - Температура генерации
+   * @param {string|null} [params.validationReason=null] - Результат валидации промпта
+   * @param {string|null} [params.validatorResponse=null] - Сырой ответ валидатора
+   *
+   * @example
+   * tracker.track({
+   *   model: "gpt-5.4",
+   *   promptTokens: 312,
+   *   completionTokens: 480,
+   *   temperature: 0.7,
+   *   validationReason: "ok"
+   * });
    */
   track({
     model,

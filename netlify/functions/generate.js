@@ -11,10 +11,21 @@ const { SQLAssistantError } = require("./_lib/errors");
 const logger = createLogger("generate");
 
 /**
- * Минимальная валидация входящего JSON (аналог Pydantic-схемы из Python):
- * - prompt: строка 1..2000
- * - model: непустая строка
- * - temperature: null или число 0..2
+ * Валидация входящего JSON payload (аналог Pydantic-схемы из Python).
+ *
+ * @param {Object} payload - Тело запроса от клиента
+ * @param {string} payload.prompt - Текстовый запрос пользователя (1-2000 символов)
+ * @param {string} payload.model - ID модели OpenAI для генерации
+ * @param {number|null} [payload.temperature] - Температура генерации (0.0-2.0) или null
+ *
+ * @throws {SQLAssistantError} Если payload не соответствует требованиям
+ *
+ * @example
+ * validatePayload({
+ *   prompt: "Показать всех клиентов с более чем 3 заказами",
+ *   model: "gpt-5.4",
+ *   temperature: 0.7
+ * });
  */
 function validatePayload(payload) {
   if (!payload || typeof payload !== "object") {
@@ -40,12 +51,37 @@ function validatePayload(payload) {
 
 /**
  * POST /generate
- * Основной endpoint:
- * 1) auth по X-Secret-Key
- * 2) rate limit
- * 3) validator на injection/off-topic
- * 4) генерация SQL+ER через OpenAI
- * 5) usage tracking
+ *
+ * Основной эндпоинт для генерации SQL-запросов и ER-диаграмм.
+ * Требует аутентификацию через X-Secret-Key и применяет rate limiting.
+ *
+ * Процесс обработки:
+ * 1. Проверка аутентификации (X-Secret-Key)
+ * 2. Применение rate limiting (10 запросов/минуту по умолчанию)
+ * 3. Валидация промпта на injection/off-topic через gpt-5.4-nano
+ * 4. Генерация SQL + ER-диаграммы через выбранную модель OpenAI
+ * 5. Трекинг использования токенов в usage.json
+ *
+ * @param {Object} event - Netlify function event object
+ * @param {string} event.httpMethod - HTTP метод запроса (должен быть POST)
+ * @param {Object} event.headers - HTTP заголовки, должны содержать X-Secret-Key
+ * @param {string} event.body - JSON строка с payload: {prompt, model, temperature}
+ *
+ * @returns {Object} Netlify function response
+ * @returns {number} return.statusCode - 200 при успехе, 401/400/429/500 при ошибках
+ * @returns {Object} return.headers - HTTP заголовки ответа с CORS
+ * @returns {string} return.body - JSON строка с результатом генерации
+ *
+ * @example
+ * // Успешный запрос:
+ * // POST /generate
+ * // Headers: { "X-Secret-Key": "...", "Content-Type": "application/json" }
+ * // Body: { "prompt": "Показать клиентов с >3 заказами", "model": "gpt-5.4", "temperature": 0.7 }
+ * // Response: {
+ * //   "mermaid_code": "erDiagram\n  CUSTOMERS ||--o{ ORDERS : places\n  ...",
+ * //   "sql_query": "SELECT c.name, COUNT(o.id) ...",
+ * //   "explanation": "Запрос джойнит таблицы..."
+ * // }
  */
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") {
