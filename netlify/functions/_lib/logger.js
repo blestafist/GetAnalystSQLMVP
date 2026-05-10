@@ -1,42 +1,12 @@
-const fs = require("node:fs");
-const path = require("node:path");
-
 /**
- * Простой логгер в стиле Python-версии.
+ * Простой логгер для Netlify Functions.
  *
- * Логирует сообщения в консоль и файл (для WARNING и ERROR).
+ * Логирует сообщения только в консоль (console.log/error).
+ * Netlify автоматически захватывает console output в Function Logs.
  * Поддерживает 4 уровня: INFO, DEBUG, WARNING, ERROR.
- *
- * Для локальной разработки пишет в ./logs/app.log.
- * В serverless окружении пытается писать в /tmp/getanalyst/logs/app.log (эфемерное хранилище).
  *
  * Формат: [TIMESTAMP] [LEVEL] [MODULE] — message
  */
-
-/**
- * Кандидаты путей для файла логов (в порядке приоритета).
- */
-const LOG_CANDIDATES = [
-  path.resolve(process.cwd(), "logs", "app.log"),
-  path.resolve("/tmp/getanalyst/logs/app.log")
-];
-
-/**
- * Определяет доступный для записи путь к файлу логов.
- *
- * @returns {string|null} Путь к файлу логов или null если запись недоступна
- */
-function resolveWritableLogFile() {
-  for (const filePath of LOG_CANDIDATES) {
-    try {
-      const dir = path.dirname(filePath);
-      fs.mkdirSync(dir, { recursive: true });
-      fs.appendFileSync(filePath, "", "utf-8");
-      return filePath;
-    } catch (_error) {}
-  }
-  return null;
-}
 
 /**
  * Форматирует текущее время для логов.
@@ -48,7 +18,8 @@ function timestamp() {
 }
 
 /**
- * Записывает сообщение в консоль и файл (для WARNING/ERROR).
+ * Записывает сообщение в консоль.
+ * Netlify Functions автоматически захватывают console output в логи.
  *
  * @param {string} level - Уровень логирования: INFO, DEBUG, WARNING, ERROR
  * @param {string} moduleName - Имя модуля (для идентификации источника)
@@ -56,16 +27,11 @@ function timestamp() {
  */
 function write(level, moduleName, message) {
   const line = `[${timestamp()}] [${level}] [${moduleName}] — ${message}`;
-  console.log(line);
-  if (level === "WARNING" || level === "ERROR") {
-    const logFile = resolveWritableLogFile();
-    if (!logFile) {
-      return;
-    }
 
-    try {
-      fs.appendFileSync(logFile, `${line}\n`, "utf-8");
-    } catch (_error) {}
+  if (level === "ERROR") {
+    console.error(line);
+  } else {
+    console.log(line);
   }
 }
 

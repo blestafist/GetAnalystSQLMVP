@@ -1,5 +1,3 @@
-const fs = require("node:fs");
-const path = require("node:path");
 const { createLogger } = require("./logger");
 
 const logger = createLogger("usage_tracker");
@@ -7,65 +5,30 @@ const logger = createLogger("usage_tracker");
 /**
  * Трекер использования токенов OpenAI API.
  *
- * Записывает статистику вызовов в usage.json:
+ * В serverless окружении (Netlify) хранит статистику в памяти (in-memory).
+ * Данные сбрасываются при каждом cold start функции.
+ *
+ * Для персистентного хранения рекомендуется интеграция с:
+ * - Netlify Blobs API
+ * - Внешней БД (Supabase, MongoDB Atlas, PlanetScale)
+ * - Сервисом аналитики (Mixpanel, Amplitude)
+ *
+ * Записывает статистику вызовов:
  * - Общее количество вызовов
  * - Суммарное количество токенов
  * - Детальный лог каждого запроса с timestamp, моделью, токенами
- *
- * Для локальной разработки пишет в корень проекта.
- * В serverless окружении (Netlify) пытается писать в /tmp (эфемерное хранилище).
- * Ошибки записи не прерывают основной запрос (best-effort logging).
  */
 class UsageTracker {
   constructor() {
-    this.usageFile = this.resolveUsageFilePath();
-    this.ensureUsageFile();
-  }
-
-  /**
-   * Определяет доступный путь для записи usage.json.
-   *
-   * Пробует кандидатов в порядке приоритета:
-   * 1. ./usage.json (локальная разработка)
-   * 2. /tmp/getanalyst/usage.json (serverless окружение)
-   *
-   * @returns {string} Путь к файлу usage.json (может быть недоступен для записи)
-   */
-  resolveUsageFilePath() {
-    const candidates = [path.resolve(process.cwd(), "usage.json"), path.resolve("/tmp/getanalyst/usage.json")];
-
-    for (const candidate of candidates) {
-      try {
-        fs.mkdirSync(path.dirname(candidate), { recursive: true });
-        fs.appendFileSync(candidate, "", "utf-8");
-        return candidate;
-      } catch (_error) {}
-    }
-
-    return candidates[0];
-  }
-
-  /**
-   * Создаёт usage.json с начальной структурой, если файл не существует.
-   *
-   * @throws Не выбрасывает исключения - логирует предупреждение при ошибке
-   */
-  ensureUsageFile() {
-    try {
-      if (!fs.existsSync(this.usageFile) || fs.statSync(this.usageFile).size === 0) {
-        fs.writeFileSync(
-          this.usageFile,
-          JSON.stringify({ calls: 0, total_tokens: 0, log: [] }, null, 2),
-          "utf-8"
-        );
-      }
-    } catch (error) {
-      logger.warning(`Usage storage unavailable: ${error.message}`);
+    // In-memory storage для serverless окружения
+    if (!global.__usageData) {
+      global.__usageData = { calls: 0, total_tokens: 0, log: [] };
+      logger.info("Usage tracker initialized (in-memory storage)");
     }
   }
 
   /**
-   * Читает текущую статистику из usage.json.
+   * Читает текущую статистику из памяти.
    *
    * @returns {Object} Объект статистики: {calls: number, total_tokens: number, log: Array}
    * @returns {number} return.calls - Общее количество вызовов API
@@ -73,20 +36,16 @@ class UsageTracker {
    * @returns {Array} return.log - Массив записей с деталями каждого вызова
    */
   readUsage() {
-    try {
-      return JSON.parse(fs.readFileSync(this.usageFile, "utf-8"));
-    } catch {
-      return { calls: 0, total_tokens: 0, log: [] };
-    }
+    return global.__usageData || { calls: 0, total_tokens: 0, log: [] };
   }
 
   /**
-   * Записывает обновлённую статистику в usage.json.
+   * Записывает обновлённую статистику в память.
    *
    * @param {Object} data - Объект статистики для записи
    */
   writeUsage(data) {
-    fs.writeFileSync(this.usageFile, JSON.stringify(data, null, 2), "utf-8");
+    global.__usageData = data;
   }
 
   /**

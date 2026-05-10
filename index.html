@@ -173,6 +173,9 @@
                 </div>
 
                 <div class="border-t border-gray-700 pt-4">
+                    <button id="viewUsageBtn" class="w-full text-sm bg-gray-700 hover:bg-gray-600 text-white px-4 py-3 rounded-lg mb-2 font-medium">
+                        📊 Просмотр статистики использования
+                    </button>
                     <button id="resetSettingsBtn" class="text-sm text-gray-400 hover:text-white">
                         Сбросить настройки по умолчанию
                     </button>
@@ -273,8 +276,8 @@
                     </div>
 
                     <!-- Preview mode -->
-                    <div id="mermaidPreviewContainer" class="bg-gray-900 rounded-xl p-4 overflow-x-auto max-w-full">
-                        <div id="mermaidPreview" class="inline-block min-w-full"></div>
+                    <div id="mermaidPreviewContainer" class="bg-gray-900 rounded-xl p-4 overflow-x-auto">
+                        <div id="mermaidPreview" class="inline-block"></div>
                     </div>
 
                     <!-- Editor mode (hidden by default) -->
@@ -295,9 +298,9 @@
                             </button>
                         </div>
                         <!-- Live preview in editor mode -->
-                        <div class="bg-gray-900 rounded-xl p-4 overflow-x-auto max-w-full">
+                        <div class="bg-gray-900 rounded-xl p-4 overflow-x-auto">
                             <h4 class="text-sm font-medium text-gray-400 mb-2">Предварительный просмотр:</h4>
-                            <div id="mermaidLivePreview" class="inline-block min-w-full"></div>
+                            <div id="mermaidLivePreview" class="inline-block"></div>
                         </div>
                     </div>
 
@@ -977,17 +980,111 @@
                 'error': 'bg-red-600',
                 'info': 'bg-blue-600'
             }[type] || 'bg-blue-600';
-            
+
             toast.className = `${bgColor} text-white px-4 py-3 rounded shadow-lg animate-slide-in`;
             toast.textContent = message;
-            
+
             const container = document.getElementById('toastContainer');
             container.appendChild(toast);
-            
+
             setTimeout(() => {
                 toast.remove();
             }, 4000);
         }
+
+        // View Usage Statistics
+        document.getElementById('viewUsageBtn').addEventListener('click', async () => {
+            try {
+                const response = await fetchJsonWithFallback(['/usage', '/.netlify/functions/usage'], {
+                    method: 'GET',
+                    headers: {
+                        'X-Secret-Key': secretKey
+                    }
+                });
+
+                // Format usage data for display
+                const totalCalls = response.calls || 0;
+                const totalTokens = response.total_tokens || 0;
+                const logEntries = response.log || [];
+
+                let usageHtml = `
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-gray-700 p-4 rounded-lg">
+                                <div class="text-gray-400 text-sm">Всего запросов</div>
+                                <div class="text-2xl font-bold accent-text">${totalCalls}</div>
+                            </div>
+                            <div class="bg-gray-700 p-4 rounded-lg">
+                                <div class="text-gray-400 text-sm">Всего токенов</div>
+                                <div class="text-2xl font-bold accent-text">${totalTokens.toLocaleString()}</div>
+                            </div>
+                        </div>
+                        <div class="text-xs text-gray-500 bg-yellow-900/20 border border-yellow-700 p-3 rounded">
+                            ⚠️ В serverless окружении (Netlify) статистика хранится в памяти и сбрасывается при каждом cold start функции.
+                        </div>
+                `;
+
+                if (logEntries.length > 0) {
+                    usageHtml += `
+                        <div class="mt-4">
+                            <h4 class="text-sm font-medium text-gray-300 mb-2">Последние запросы:</h4>
+                            <div class="space-y-2 max-h-64 overflow-y-auto">
+                    `;
+
+                    logEntries.slice(-10).reverse().forEach(entry => {
+                        const date = new Date(entry.timestamp).toLocaleString('ru-RU');
+                        usageHtml += `
+                            <div class="bg-gray-700 p-3 rounded text-xs">
+                                <div class="flex justify-between mb-1">
+                                    <span class="text-gray-400">${date}</span>
+                                    <span class="accent-text font-medium">${entry.model}</span>
+                                </div>
+                                <div class="text-gray-300">
+                                    Токены: ${entry.prompt_tokens} + ${entry.completion_tokens} = ${entry.total_tokens}
+                                    ${entry.temperature !== undefined ? ` | T: ${entry.temperature}` : ''}
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    usageHtml += `
+                            </div>
+                        </div>
+                    `;
+                }
+
+                usageHtml += `</div>`;
+
+                // Show in a modal-like toast
+                const modal = document.createElement('div');
+                modal.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 animate-fade-in';
+                modal.innerHTML = `
+                    <div class="bg-gray-800 rounded-2xl p-6 max-w-2xl w-full mx-4 elevation-3">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-xl font-bold accent-text">📊 Статистика использования</h3>
+                            <button class="text-gray-400 hover:text-white" onclick="this.closest('.fixed').remove()">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        ${usageHtml}
+                    </div>
+                `;
+                document.body.appendChild(modal);
+
+                // Close on background click
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        modal.remove();
+                    }
+                });
+
+            } catch (error) {
+                console.error('[SQL Assistant] Usage fetch error:', error);
+                showToast('Ошибка загрузки статистики: ' + error.message, 'error');
+            }
+        });
     </script>
 
     <style>
