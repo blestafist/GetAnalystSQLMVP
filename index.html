@@ -99,8 +99,7 @@
                     id="secretKeyInput"
                     type="password"
                     placeholder="Введите SecretKey..."
-                    class="w-full bg-gray-700 text-white px-4 py-3 rounded-xl mb-4 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800"
-                    style="focus:ring-color: var(--accent-color);"
+                    class="w-full bg-gray-700 text-white px-4 py-3 rounded-xl mb-4 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-[var(--accent-color)]"
                 />
                 <button
                     id="submitKeyBtn"
@@ -145,8 +144,7 @@
                                 id="customColorInput"
                                 type="text"
                                 placeholder="#6750A4"
-                                class="flex-1 bg-gray-700 text-white px-4 py-2 rounded-lg text-sm focus:outline-none focus:ring-2"
-                                style="focus:ring-color: var(--accent-color);"
+                                class="flex-1 bg-gray-700 text-white px-4 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)]"
                             />
                             <button id="applyCustomColorBtn" class="accent-bg hover:opacity-90 text-white px-4 py-2 rounded-lg text-sm font-medium">
                                 Применить
@@ -161,8 +159,7 @@
                     <p class="text-xs text-gray-500 mb-3">Изменения сохраняются только в текущей сессии</p>
                     <textarea
                         id="configEditor"
-                        class="w-full h-64 bg-gray-900 text-gray-100 font-mono text-xs px-4 py-3 rounded-lg resize-none focus:outline-none focus:ring-2"
-                        style="focus:ring-color: var(--accent-color);"
+                        class="w-full h-64 bg-gray-900 text-gray-100 font-mono text-xs px-4 py-3 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)]"
                         placeholder="Загрузка конфигурации..."
                     ></textarea>
                     <div class="flex gap-2 mt-3">
@@ -206,8 +203,7 @@
                         <textarea
                             id="promptInput"
                             placeholder="Опишите что вам нужно..."
-                            class="w-full h-32 bg-gray-700 text-white px-4 py-3 rounded-xl resize-none focus:outline-none focus:ring-2"
-                            style="focus:ring-color: var(--accent-color);"
+                            class="w-full h-32 bg-gray-700 text-white px-4 py-3 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] transition-all duration-300"
                         ></textarea>
                         <p class="text-xs text-gray-500 mt-2">💡 Нажмите <kbd class="px-2 py-1 bg-gray-700 rounded">Tab</kbd> для примера</p>
                     </div>
@@ -235,8 +231,7 @@
                         <label class="block text-sm font-medium mb-2 text-gray-300">Модель</label>
                         <select
                             id="modelSelect"
-                            class="w-full bg-gray-700 text-white px-4 py-3 rounded-xl focus:outline-none focus:ring-2 cursor-pointer"
-                            style="focus:ring-color: var(--accent-color);"
+                            class="w-full bg-gray-700 text-white px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] cursor-pointer transition-all duration-300"
                         >
                             <option value="">Загрузка моделей...</option>
                         </select>
@@ -278,8 +273,8 @@
                     </div>
 
                     <!-- Preview mode -->
-                    <div id="mermaidPreviewContainer" class="bg-gray-900 rounded-xl p-4 overflow-x-auto">
-                        <div id="mermaidPreview"></div>
+                    <div id="mermaidPreviewContainer" class="bg-gray-900 rounded-xl p-4 overflow-x-auto max-w-full">
+                        <div id="mermaidPreview" class="inline-block min-w-full"></div>
                     </div>
 
                     <!-- Editor mode (hidden by default) -->
@@ -287,8 +282,7 @@
                         <div class="bg-gray-900 rounded-xl p-4">
                             <textarea
                                 id="mermaidEditor"
-                                class="w-full h-64 bg-gray-800 text-gray-100 font-mono text-sm px-4 py-3 rounded-lg resize-none focus:outline-none focus:ring-2"
-                                style="focus:ring-color: var(--accent-color);"
+                                class="w-full h-64 bg-gray-800 text-gray-100 font-mono text-sm px-4 py-3 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)]"
                                 placeholder="erDiagram..."
                             ></textarea>
                         </div>
@@ -301,9 +295,9 @@
                             </button>
                         </div>
                         <!-- Live preview in editor mode -->
-                        <div class="bg-gray-900 rounded-xl p-4 overflow-x-auto">
+                        <div class="bg-gray-900 rounded-xl p-4 overflow-x-auto max-w-full">
                             <h4 class="text-sm font-medium text-gray-400 mb-2">Предварительный просмотр:</h4>
-                            <div id="mermaidLivePreview"></div>
+                            <div id="mermaidLivePreview" class="inline-block min-w-full"></div>
                         </div>
                     </div>
 
