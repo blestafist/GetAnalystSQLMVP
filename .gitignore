@@ -1,31 +1,31 @@
-# Environment
+# Environment variables
 .env
-.venv
-venv/
-ENV/
-env/
+.env.local
 
-# Node
+# Logs
+logs/
+*.log
+
+# Usage tracking
+usage.json
+
+# Node modules
 node_modules/
-npm-debug.log*
+
+# Netlify
+.netlify/
+functions-serve/
+
+# OS files
+.DS_Store
+Thumbs.db
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
 
-# OS
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-
-# Logs
-logs/
-*.log
-
+# Temporary files
+tmp/
+temp/

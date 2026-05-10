@@ -80,11 +80,14 @@ GetAnalystMVP/
 │   │   ├── config.js              # GET /config → System configuration
 │   │   ├── auth.js                # POST /auth → Authentication endpoint
 │   │   ├── generate.js            # POST /generate → SQL/diagram generation
+│   │   ├── usage.js               # GET /usage → Usage statistics (protected)
 │   │   │
 │   │   └── _lib/                  # Shared utilities
 │   │       ├── auth.js            # Secret key validation (bcrypt)
 │   │       ├── validator.js       # Input/output validation
-│   │       ├── usage-tracker.js   # Rate limiting & usage tracking
+│   │       ├── llm.js             # OpenAI API integration
+│   │       ├── usage-tracker.js   # Token usage tracking
+│   │       ├── rate-limit.js      # Rate limiting logic
 │   │       ├── logger.js          # Structured logging
 │   │       ├── http.js            # HTTP response helpers
 │   │       ├── settings.js        # Environment & config management
@@ -160,6 +163,38 @@ Content-Type: application/json
   "temperature": 0.7
 }
 ```
+
+#### `GET /.netlify/functions/usage`
+
+Returns usage statistics including token consumption and API call history. **Requires authentication.**
+
+**Headers:**
+
+```
+X-Secret-Key: your-secret-key
+```
+
+**Response:**
+
+```json
+{
+  "calls": 42,
+  "total_tokens": 158340,
+  "log": [
+    {
+      "timestamp": "2026-05-10T09:30:00.000Z",
+      "model": "gpt-5.4",
+      "prompt_tokens": 312,
+      "completion_tokens": 480,
+      "total_tokens": 792,
+      "temperature": 0.7,
+      "validation_reason": "ok"
+    }
+  ]
+}
+```
+
+**Note:** In serverless environments (Netlify), usage data is stored in ephemeral `/tmp` storage and may reset between cold starts. For persistent tracking, consider integrating with external analytics services.
 
 ---
 
